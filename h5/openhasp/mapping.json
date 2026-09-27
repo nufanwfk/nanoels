@@ -1,0 +1,639 @@
+{
+  "source_commit": "8aa938936bc8e0051c7eb3cf14a173e1f1bc649a",
+  "pages": {
+    "0": 1,
+    "1": 2
+  },
+  "components": [
+    {
+      "name": "t3",
+      "openhasp": "p1b2",
+      "page": 1,
+      "id": 2,
+      "nextion_page": 0,
+      "nextion_component_id": 2,
+      "action": null,
+      "live_text": true
+    },
+    {
+      "name": "bStatus",
+      "openhasp": "p1b3",
+      "page": 1,
+      "id": 3,
+      "nextion_page": 0,
+      "nextion_component_id": 3,
+      "action": "B_OFF",
+      "live_text": true
+    },
+    {
+      "name": "bMode",
+      "openhasp": "p1b4",
+      "page": 1,
+      "id": 4,
+      "nextion_page": 0,
+      "nextion_component_id": 4,
+      "action": "B_MODE",
+      "live_text": true
+    },
+    {
+      "name": "tPitch",
+      "openhasp": "p1b5",
+      "page": 1,
+      "id": 5,
+      "nextion_page": 0,
+      "nextion_component_id": 5,
+      "action": "B_REVERSE",
+      "live_text": true
+    },
+    {
+      "name": "bMeasure",
+      "openhasp": "p1b6",
+      "page": 1,
+      "id": 6,
+      "nextion_page": 0,
+      "nextion_component_id": 6,
+      "action": "B_MEASURE",
+      "live_text": true
+    },
+    {
+      "name": "tStepVal",
+      "openhasp": "p1b7",
+      "page": 1,
+      "id": 7,
+      "nextion_page": 0,
+      "nextion_component_id": 7,
+      "action": "B_STEP",
+      "live_text": true
+    },
+    {
+      "name": "tRPMVal",
+      "openhasp": "p1b8",
+      "page": 1,
+      "id": 8,
+      "nextion_page": 0,
+      "nextion_component_id": 8,
+      "action": null,
+      "live_text": true
+    },
+    {
+      "name": "tTurnsVal",
+      "openhasp": "p1b9",
+      "page": 1,
+      "id": 9,
+      "nextion_page": 0,
+      "nextion_component_id": 9,
+      "action": "B_OFF",
+      "live_text": true
+    },
+    {
+      "name": "tAngleVal",
+      "openhasp": "p1b10",
+      "page": 1,
+      "id": 10,
+      "nextion_page": 0,
+      "nextion_component_id": 10,
+      "action": "B_OFF",
+      "live_text": true
+    },
+    {
+      "name": "bX",
+      "openhasp": "p1b11",
+      "page": 1,
+      "id": 11,
+      "nextion_page": 0,
+      "nextion_component_id": 11,
+      "action": "B_X_ENA",
+      "live_text": false
+    },
+    {
+      "name": "tX",
+      "openhasp": "p1b12",
+      "page": 1,
+      "id": 12,
+      "nextion_page": 0,
+      "nextion_component_id": 12,
+      "action": "B_X",
+      "live_text": true
+    },
+    {
+      "name": "tXUp",
+      "openhasp": "p1b13",
+      "page": 1,
+      "id": 13,
+      "nextion_page": 0,
+      "nextion_component_id": 36,
+      "action": "B_STOPU",
+      "live_text": true
+    },
+    {
+      "name": "tXDown",
+      "openhasp": "p1b14",
+      "page": 1,
+      "id": 14,
+      "nextion_page": 0,
+      "nextion_component_id": 37,
+      "action": "B_STOPD",
+      "live_text": true
+    },
+    {
+      "name": "bY",
+      "openhasp": "p1b15",
+      "page": 1,
+      "id": 15,
+      "nextion_page": 0,
+      "nextion_component_id": 15,
+      "action": "B_Y_ENA",
+      "live_text": false
+    },
+    {
+      "name": "tYUp",
+      "openhasp": "p1b16",
+      "page": 1,
+      "id": 16,
+      "nextion_page": 0,
+      "nextion_component_id": 38,
+      "action": "B_STOPF",
+      "live_text": true
+    },
+    {
+      "name": "tY",
+      "openhasp": "p1b17",
+      "page": 1,
+      "id": 17,
+      "nextion_page": 0,
+      "nextion_component_id": 17,
+      "action": "B_Y",
+      "live_text": true
+    },
+    {
+      "name": "tYDown",
+      "openhasp": "p1b18",
+      "page": 1,
+      "id": 18,
+      "nextion_page": 0,
+      "nextion_component_id": 39,
+      "action": "B_STOPB",
+      "live_text": true
+    },
+    {
+      "name": "bZ",
+      "openhasp": "p1b19",
+      "page": 1,
+      "id": 19,
+      "nextion_page": 0,
+      "nextion_component_id": 19,
+      "action": "B_Z_ENA",
+      "live_text": false
+    },
+    {
+      "name": "tZLeft",
+      "openhasp": "p1b20",
+      "page": 1,
+      "id": 20,
+      "nextion_page": 0,
+      "nextion_component_id": 40,
+      "action": "B_STOPL",
+      "live_text": true
+    },
+    {
+      "name": "tZ",
+      "openhasp": "p1b21",
+      "page": 1,
+      "id": 21,
+      "nextion_page": 0,
+      "nextion_component_id": 21,
+      "action": "B_Z",
+      "live_text": true
+    },
+    {
+      "name": "tZRight",
+      "openhasp": "p1b22",
+      "page": 1,
+      "id": 22,
+      "nextion_page": 0,
+      "nextion_component_id": 41,
+      "action": "B_STOPR",
+      "live_text": true
+    },
+    {
+      "name": "bD0",
+      "openhasp": "p1b26",
+      "page": 1,
+      "id": 26,
+      "nextion_page": 0,
+      "nextion_component_id": 26,
+      "action": "B_0",
+      "live_text": false
+    },
+    {
+      "name": "bD1",
+      "openhasp": "p1b27",
+      "page": 1,
+      "id": 27,
+      "nextion_page": 0,
+      "nextion_component_id": 27,
+      "action": "B_1",
+      "live_text": false
+    },
+    {
+      "name": "bD2",
+      "openhasp": "p1b28",
+      "page": 1,
+      "id": 28,
+      "nextion_page": 0,
+      "nextion_component_id": 28,
+      "action": "B_2",
+      "live_text": false
+    },
+    {
+      "name": "bD3",
+      "openhasp": "p1b29",
+      "page": 1,
+      "id": 29,
+      "nextion_page": 0,
+      "nextion_component_id": 29,
+      "action": "B_3",
+      "live_text": false
+    },
+    {
+      "name": "bD4",
+      "openhasp": "p1b30",
+      "page": 1,
+      "id": 30,
+      "nextion_page": 0,
+      "nextion_component_id": 30,
+      "action": "B_4",
+      "live_text": false
+    },
+    {
+      "name": "bD5",
+      "openhasp": "p1b31",
+      "page": 1,
+      "id": 31,
+      "nextion_page": 0,
+      "nextion_component_id": 31,
+      "action": "B_5",
+      "live_text": false
+    },
+    {
+      "name": "bD6",
+      "openhasp": "p1b32",
+      "page": 1,
+      "id": 32,
+      "nextion_page": 0,
+      "nextion_component_id": 32,
+      "action": "B_6",
+      "live_text": false
+    },
+    {
+      "name": "bD7",
+      "openhasp": "p1b33",
+      "page": 1,
+      "id": 33,
+      "nextion_page": 0,
+      "nextion_component_id": 33,
+      "action": "B_7",
+      "live_text": false
+    },
+    {
+      "name": "bD8",
+      "openhasp": "p1b34",
+      "page": 1,
+      "id": 34,
+      "nextion_page": 0,
+      "nextion_component_id": 34,
+      "action": "B_8",
+      "live_text": false
+    },
+    {
+      "name": "bD9",
+      "openhasp": "p1b35",
+      "page": 1,
+      "id": 35,
+      "nextion_page": 0,
+      "nextion_component_id": 35,
+      "action": "B_9",
+      "live_text": false
+    },
+    {
+      "name": "mStop",
+      "openhasp": "p1b23",
+      "page": 1,
+      "id": 23,
+      "nextion_page": 0,
+      "nextion_component_id": 23,
+      "action": "B_OFF",
+      "live_text": false
+    },
+    {
+      "name": "mBack",
+      "openhasp": "p1b24",
+      "page": 1,
+      "id": 24,
+      "nextion_page": 0,
+      "nextion_component_id": 24,
+      "action": "B_BACKSPACE",
+      "live_text": false
+    },
+    {
+      "name": "mPlay",
+      "openhasp": "p1b25",
+      "page": 1,
+      "id": 25,
+      "nextion_page": 0,
+      "nextion_component_id": 25,
+      "action": "B_ON",
+      "live_text": false
+    },
+    {
+      "name": "mXUp",
+      "openhasp": "p1b36",
+      "page": 1,
+      "id": 36,
+      "nextion_page": 0,
+      "nextion_component_id": 36,
+      "action": "B_STOPU",
+      "live_text": false
+    },
+    {
+      "name": "mXDown",
+      "openhasp": "p1b37",
+      "page": 1,
+      "id": 37,
+      "nextion_page": 0,
+      "nextion_component_id": 37,
+      "action": "B_STOPD",
+      "live_text": false
+    },
+    {
+      "name": "mYUp",
+      "openhasp": "p1b38",
+      "page": 1,
+      "id": 38,
+      "nextion_page": 0,
+      "nextion_component_id": 38,
+      "action": "B_STOPF",
+      "live_text": false
+    },
+    {
+      "name": "mYDown",
+      "openhasp": "p1b39",
+      "page": 1,
+      "id": 39,
+      "nextion_page": 0,
+      "nextion_component_id": 39,
+      "action": "B_STOPB",
+      "live_text": false
+    },
+    {
+      "name": "m3",
+      "openhasp": "p1b40",
+      "page": 1,
+      "id": 40,
+      "nextion_page": 0,
+      "nextion_component_id": 40,
+      "action": "B_STOPL",
+      "live_text": false
+    },
+    {
+      "name": "m4",
+      "openhasp": "p1b41",
+      "page": 1,
+      "id": 41,
+      "nextion_page": 0,
+      "nextion_component_id": 41,
+      "action": "B_STOPR",
+      "live_text": false
+    },
+    {
+      "name": "mPlus",
+      "openhasp": "p1b42",
+      "page": 1,
+      "id": 42,
+      "nextion_page": 0,
+      "nextion_component_id": 42,
+      "action": "B_PLUS",
+      "live_text": false
+    },
+    {
+      "name": "mMinus",
+      "openhasp": "p1b43",
+      "page": 1,
+      "id": 43,
+      "nextion_page": 0,
+      "nextion_component_id": 43,
+      "action": "B_MINUS",
+      "live_text": false
+    },
+    {
+      "name": "m0",
+      "openhasp": "p1b44",
+      "page": 1,
+      "id": 44,
+      "nextion_page": 0,
+      "nextion_component_id": 44,
+      "action": "B_UP",
+      "live_text": false
+    },
+    {
+      "name": "m1",
+      "openhasp": "p1b45",
+      "page": 1,
+      "id": 45,
+      "nextion_page": 0,
+      "nextion_component_id": 45,
+      "action": "B_DOWN",
+      "live_text": false
+    },
+    {
+      "name": "m2",
+      "openhasp": "p1b46",
+      "page": 1,
+      "id": 46,
+      "nextion_page": 0,
+      "nextion_component_id": 46,
+      "action": "B_FORWARD",
+      "live_text": false
+    },
+    {
+      "name": "m5",
+      "openhasp": "p1b47",
+      "page": 1,
+      "id": 47,
+      "nextion_page": 0,
+      "nextion_component_id": 47,
+      "action": "B_BACK",
+      "live_text": false
+    },
+    {
+      "name": "m6",
+      "openhasp": "p1b48",
+      "page": 1,
+      "id": 48,
+      "nextion_page": 0,
+      "nextion_component_id": 48,
+      "action": "B_LEFT",
+      "live_text": false
+    },
+    {
+      "name": "m7",
+      "openhasp": "p1b49",
+      "page": 1,
+      "id": 49,
+      "nextion_page": 0,
+      "nextion_component_id": 49,
+      "action": "B_RIGHT",
+      "live_text": false
+    },
+    {
+      "name": "mMultistart",
+      "openhasp": "p1b50",
+      "page": 1,
+      "id": 50,
+      "nextion_page": 0,
+      "nextion_component_id": 50,
+      "action": "B_MULTISTART",
+      "live_text": false
+    },
+    {
+      "name": "modeGears",
+      "openhasp": "p2b12",
+      "page": 2,
+      "id": 12,
+      "nextion_page": 1,
+      "nextion_component_id": 12,
+      "action": "B_MODE_GEARS",
+      "live_text": false
+    },
+    {
+      "name": "modeTurn",
+      "openhasp": "p2b13",
+      "page": 2,
+      "id": 13,
+      "nextion_page": 1,
+      "nextion_component_id": 13,
+      "action": "B_MODE_TURN",
+      "live_text": false
+    },
+    {
+      "name": "touchFace",
+      "openhasp": "p2b14",
+      "page": 2,
+      "id": 14,
+      "nextion_page": 1,
+      "nextion_component_id": 14,
+      "action": "B_MODE_FACE",
+      "live_text": false
+    },
+    {
+      "name": "modeCone",
+      "openhasp": "p2b15",
+      "page": 2,
+      "id": 15,
+      "nextion_page": 1,
+      "nextion_component_id": 15,
+      "action": "B_MODE_CONE",
+      "live_text": false
+    },
+    {
+      "name": "modeCut",
+      "openhasp": "p2b16",
+      "page": 2,
+      "id": 16,
+      "nextion_page": 1,
+      "nextion_component_id": 16,
+      "action": "B_MODE_CUT",
+      "live_text": false
+    },
+    {
+      "name": "modeThread",
+      "openhasp": "p2b17",
+      "page": 2,
+      "id": 17,
+      "nextion_page": 1,
+      "nextion_component_id": 17,
+      "action": "B_MODE_THREAD",
+      "live_text": false
+    },
+    {
+      "name": "modeEllipse",
+      "openhasp": "p2b18",
+      "page": 2,
+      "id": 18,
+      "nextion_page": 1,
+      "nextion_component_id": 18,
+      "action": "B_MODE_ELLIPSE",
+      "live_text": false
+    },
+    {
+      "name": "modeGcode",
+      "openhasp": "p2b19",
+      "page": 2,
+      "id": 19,
+      "nextion_page": 1,
+      "nextion_component_id": 19,
+      "action": "B_MODE_GCODE",
+      "live_text": false
+    },
+    {
+      "name": "modeAsync",
+      "openhasp": "p2b20",
+      "page": 2,
+      "id": 20,
+      "nextion_page": 1,
+      "nextion_component_id": 20,
+      "action": "B_MODE_ASYNC",
+      "live_text": false
+    },
+    {
+      "name": "modeY",
+      "openhasp": "p2b21",
+      "page": 2,
+      "id": 21,
+      "nextion_page": 1,
+      "nextion_component_id": 21,
+      "action": "B_MODE_Y",
+      "live_text": false
+    },
+    {
+      "name": "modeXGear",
+      "openhasp": "p2b23",
+      "page": 2,
+      "id": 23,
+      "nextion_page": 1,
+      "nextion_component_id": 23,
+      "action": "B_MODE_XGEAR",
+      "live_text": false
+    },
+    {
+      "name": "modeJoy",
+      "openhasp": "p2b25",
+      "page": 2,
+      "id": 25,
+      "nextion_page": 1,
+      "nextion_component_id": 25,
+      "action": "B_MODE_JOYSTICK",
+      "live_text": false
+    },
+    {
+      "name": "modeSlot",
+      "openhasp": "p2b27",
+      "page": 2,
+      "id": 27,
+      "nextion_page": 1,
+      "nextion_component_id": 27,
+      "action": "B_MODE_SLOT",
+      "live_text": false
+    },
+    {
+      "name": "localBack",
+      "openhasp": "p2b100",
+      "page": 2,
+      "id": 100,
+      "nextion_page": null,
+      "nextion_component_id": null,
+      "action": "LOCAL_PAGE_1",
+      "live_text": false
+    }
+  ]
+}
