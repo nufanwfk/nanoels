@@ -20,6 +20,19 @@ Latest version of the electronic lead screw controller for metal lathes - https:
 
 ## Display options
 
+### Experimental openHASP layouts
+
+The [openHASP layout package](openhasp/README.md) recreates the main control
+screen and mode selector at 800 × 480 for an ESP32-based display, with the
+CrowPanel Advance DIS02050A as the intended target. It includes JSONL layouts,
+a font, previews, and mappings for all live fields and touch actions.
+
+These are layout assets only. CrowPanel openHASP firmware support and the
+NanoELS serial integration still need implementation or hardware verification.
+See the package README for installation requirements and validation limits.
+
+### Nextion displays
+
 You can use any other Nextion display model including cheaper and smaller ones without touch.
 
 - Requires re-compiling the `h5.tft` file from the [h5.HMI](https://github.com/kachurovskiy/nanoels/blob/main/h5/screen/h5.HMI) for your display
