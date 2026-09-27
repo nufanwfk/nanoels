@@ -83,6 +83,10 @@ const char* WIFI_SETUP_AP_PASSWORD = "nanoels-h5";
 const long INCOMING_BUFFER_SIZE = 100000;
 const long OUTGOING_BUFFER_SIZE = 100000;
 
+// Display backend: 0 = Nextion (default), 1 = openHASP over generic UART.
+const int DEFAULT_DISPLAY_TYPE = 0;
+int DISPLAY_TYPE = DEFAULT_DISPLAY_TYPE; // Saved choice; active backend changes only at boot.
+
 /* Changing anything below shouldn't be needed for basic use. */
 
 // Configuration for axis connected to Y. This is uncommon. Dividing head (C) motor parameters.
@@ -403,6 +407,7 @@ const int KEYBOARD_BINDING_COUNT = sizeof(keyboardBindings) / sizeof(keyboardBin
 #define PREF_AUX_FORWARD "af"
 
 #define CFG_VERSION "v"
+#define CFG_DISPLAY_TYPE "displayType"
 #define CFG_ENCODER_PPR "encPpr"
 #define CFG_ENCODER_BACKLASH "encBacklash"
 #define CFG_AXIS_ENCODER_BACKLASH "axisEncBacklash"
@@ -532,6 +537,7 @@ struct CircleBuffer {
 #include <Preferences.h>
 #include <PS2KeyAdvanced.h> // install via Libraries as "PS2KeyAdvanced"
 #include <soc/soc.h>
+#include "display_protocol.h"
 
 const long NEXTION_NORMAL_BAUD = 115200;
 const long NEXTION_FIRST_UPLOAD_BAUD = 9600;
@@ -1776,6 +1782,7 @@ const char indexhtml[] PROGMEM = R"rawliteral(
     const keyboardStatus = document.getElementById('keyboard-status');
     const saveKeyboardButton = document.getElementById('save-keyboard');
     const resetKeyboardButton = document.getElementById('reset-keyboard');
+    let activeDisplayType = 0;
     let tftUploadInProgress = false;
     let firmwareUploadInProgress = false;
     let firmwareReloadTimer = 0;
@@ -1814,6 +1821,12 @@ const char indexhtml[] PROGMEM = R"rawliteral(
     };
     let accessibilitySettings = Object.assign({}, accessibilityDefaults);
     const machineConfigSections = [
+      {
+        title: 'Display',
+        fields: [
+          { key: 'displayType', label: 'Screen type', type: 'select', options: [{value: '0', label: 'Nextion'}, {value: '1', label: 'openHASP'}], help: 'Applied after Save and restart. openHASP requires a generic serial transport extension on the panel.' }
+        ]
+      },
       {
         title: 'Spindle encoder',
         fields: [
@@ -2645,8 +2658,8 @@ const char indexhtml[] PROGMEM = R"rawliteral(
       resetWifiButton.disabled = uploadInProgress;
       saveKeyboardButton.disabled = uploadInProgress;
       resetKeyboardButton.disabled = uploadInProgress;
-      tftFirstUploadCheckbox.disabled = uploadInProgress;
-      tftFileInput.disabled = uploadInProgress;
+      tftFirstUploadCheckbox.disabled = uploadInProgress || activeDisplayType === 1;
+      tftFileInput.disabled = uploadInProgress || activeDisplayType === 1;
       firmwareFileInput.disabled = uploadInProgress;
       const controlDisabled = uploadInProgress || ws.readyState !== WebSocket.OPEN;
       controlButtons.forEach(button => {
@@ -2670,7 +2683,7 @@ const char indexhtml[] PROGMEM = R"rawliteral(
         button.disabled = uploadInProgress;
         button.classList.toggle('disabled', button.disabled);
       });
-      tftBrowseButton.classList.toggle('disabled', uploadInProgress);
+      tftBrowseButton.classList.toggle('disabled', uploadInProgress || activeDisplayType === 1);
       firmwareBrowseButton.classList.toggle('disabled', uploadInProgress);
     }
 
@@ -3006,13 +3019,17 @@ const char indexhtml[] PROGMEM = R"rawliteral(
               unit.textContent = ` (${field.unit})`;
               label.appendChild(unit);
             }
-            const input = document.createElement('input');
-            input.type = 'number';
+            const input = document.createElement(field.type === 'select' ? 'select' : 'input');
+            if (field.type === 'select') {
+              field.options.forEach(option => input.add(new Option(option.label, option.value)));
+            } else {
+              input.type = 'number';
+              input.min = field.min;
+              input.max = field.max;
+              input.step = field.step;
+            }
             input.id = id;
             input.dataset.key = field.key;
-            input.min = field.min;
-            input.max = field.max;
-            input.step = field.step;
             input.required = true;
             row.appendChild(label);
             row.appendChild(input);
@@ -3045,6 +3062,9 @@ const char indexhtml[] PROGMEM = R"rawliteral(
         .then(data => {
           const values = parseKeyValueText(data);
           applyConfigValues(values);
+          activeDisplayType = Number(values.activeDisplayType || 0);
+          if (activeDisplayType === 1) tftStatus.textContent = 'openHASP selected: upload layouts and fonts through the panel web interface.';
+          updateButtonStates();
           applyControlConfigValues(values);
           configStatus.textContent = '';
         })
@@ -3488,7 +3508,7 @@ const char indexhtml[] PROGMEM = R"rawliteral(
 
     function uploadTftFile() {
       const file = tftFileInput.files[0];
-      if (!file || tftUploadInProgress) return;
+      if (!file || tftUploadInProgress || activeDisplayType === 1) return;
       const nextionBaud = tftFirstUploadCheckbox.checked ? 9600 : 115200;
 
       const formData = new FormData();
@@ -4107,10 +4127,16 @@ int tftUploadPacketLength = 0;
 int tftUploadProgressPercent = 0;
 long nextionSerialBaud = NEXTION_NORMAL_BAUD;
 byte tftUploadPacket[NEXTION_TFT_PACKET_SIZE];
-const int NEXTION_BUFFER_LENGTH = 256;
-byte nextionBuffer[NEXTION_BUFFER_LENGTH];
-int nextionBufferIndex = 0;
-byte lastNextionPageId = 255;
+byte lastScreenPageId = 255;
+h5display::Backend activeDisplayBackend = h5display::Nextion;
+h5display::Receiver screenReceiver;
+h5display::TouchState screenTouchState;
+h5display::Event pendingScreenPress;
+bool hasPendingScreenPress = false;
+SemaphoreHandle_t screenTxMutex = NULL;
+bool screenRefreshPending = false; // Protected by screenTxMutex.
+bool screenCancelPending = false;  // Consumed only by the keypad task.
+byte screenPage = 0;               // Logical Nextion page, protected by screenTxMutex.
 volatile bool firmwareUploadActive = false;
 bool firmwareUploadFailed = false;
 int firmwareUploadHttpStatus = 200;
@@ -4145,6 +4171,7 @@ float clampFloatValue(float value, float minValue, float maxValue) {
 }
 
 void setMachineConfigDefaults() {
+  DISPLAY_TYPE = DEFAULT_DISPLAY_TYPE;
   ENCODER_PPR = DEFAULT_ENCODER_PPR;
   ENCODER_BACKLASH = DEFAULT_ENCODER_BACKLASH;
   AXIS_ENCODER_BACKLASH = DEFAULT_AXIS_ENCODER_BACKLASH;
@@ -4215,6 +4242,7 @@ void applyDerivedMachineConfig() {
 }
 
 void normalizeMachineConfig() {
+  if (DISPLAY_TYPE != 0 && DISPLAY_TYPE != 1) DISPLAY_TYPE = DEFAULT_DISPLAY_TYPE;
   ENCODER_PPR = clampIntValue(ENCODER_PPR, 1, 15000);
   ENCODER_BACKLASH = clampIntValue(ENCODER_BACKLASH, 0, 30000);
   AXIS_ENCODER_BACKLASH = clampIntValue(AXIS_ENCODER_BACKLASH, 0, 30000);
@@ -4268,6 +4296,7 @@ void loadMachineConfig() {
     cfg.clear();
     cfg.putInt(CFG_VERSION, CONFIG_VERSION);
   }
+  DISPLAY_TYPE = cfg.getInt(CFG_DISPLAY_TYPE, DISPLAY_TYPE);
   ENCODER_PPR = cfg.getInt(CFG_ENCODER_PPR, ENCODER_PPR);
   ENCODER_BACKLASH = cfg.getInt(CFG_ENCODER_BACKLASH, ENCODER_BACKLASH);
   AXIS_ENCODER_BACKLASH = cfg.getInt(CFG_AXIS_ENCODER_BACKLASH, AXIS_ENCODER_BACKLASH);
@@ -4338,6 +4367,7 @@ void saveMachineConfig() {
   Preferences cfg;
   cfg.begin(CONFIG_NAMESPACE);
   cfg.putInt(CFG_VERSION, CONFIG_VERSION);
+  cfg.putInt(CFG_DISPLAY_TYPE, DISPLAY_TYPE);
   cfg.putInt(CFG_ENCODER_PPR, ENCODER_PPR);
   cfg.putInt(CFG_ENCODER_BACKLASH, ENCODER_BACKLASH);
   cfg.putInt(CFG_AXIS_ENCODER_BACKLASH, AXIS_ENCODER_BACKLASH);
@@ -4526,6 +4556,8 @@ bool validateMachineConfig(String* error) {
 }
 
 bool readMachineConfigFromRequest(String* error) {
+  // Older web clients omit this new setting; preserve the stored choice.
+  if (server.hasArg("displayType") && !readIntConfigArg("displayType", &DISPLAY_TYPE, 0, 1, error)) return false;
   return
     readIntConfigArg("encoderPpr", &ENCODER_PPR, 1, 15000, error) &&
     readIntConfigArg("encoderBacklash", &ENCODER_BACKLASH, 0, 30000, error) &&
@@ -4948,6 +4980,8 @@ bool shouldConsumeKeyboardCapture(byte physicalCode, bool isPress) {
 String getMachineConfigResponse() {
   String response = "";
   response.reserve(2600);
+  appendConfigLine(&response, "displayType", DISPLAY_TYPE);
+  appendConfigLine(&response, "activeDisplayType", int(activeDisplayBackend));
   appendConfigLine(&response, "encoderPpr", ENCODER_PPR);
   appendConfigLine(&response, "encoderBacklash", ENCODER_BACKLASH);
   appendConfigLine(&response, "axisEncoderBacklash", AXIS_ENCODER_BACKLASH);
@@ -5496,6 +5530,10 @@ void setTftUploadError(const String& message, int status) {
 }
 
 bool startNextionTftUpload(long fileSize, long currentBaud) {
+  if (activeDisplayBackend != h5display::Nextion) {
+    setTftUploadError("error: Nextion TFT upload is unavailable for openHASP", 409);
+    return false;
+  }
   tftUploadLog(String("upload started, size=") + String(fileSize) + " bytes, display baud=" + String(currentBaud));
   if (fileSize <= 0) {
     setTftUploadError("error: TFT file is empty", 400);
@@ -5510,7 +5548,10 @@ bool startNextionTftUpload(long fileSize, long currentBaud) {
     return false;
   }
 
+  // Finish any in-flight display command before handing UART ownership to the uploader.
+  xSemaphoreTake(screenTxMutex, portMAX_DELAY);
   tftUploadActive = true;
+  xSemaphoreGive(screenTxMutex);
   tftUploadFailed = false;
   tftUploadHttpStatus = 200;
   tftUploadMessage = "TFT upload started";
@@ -5519,7 +5560,7 @@ bool startNextionTftUpload(long fileSize, long currentBaud) {
   tftUploadSentSize = 0;
   tftUploadPacketLength = 0;
   tftUploadProgressPercent = 0;
-  nextionBufferIndex = 0;
+  screenReceiver.reset();
   beginNextionSerial(currentBaud);
   clearNextionInput();
 
@@ -5611,6 +5652,10 @@ void finishTftUpload() {
 
 void handleTftUpload() {
   HTTPUpload& upload = server.upload();
+  if (activeDisplayBackend != h5display::Nextion) {
+    if (upload.status == UPLOAD_FILE_START) setTftUploadError("error: Nextion TFT upload is unavailable for openHASP", 409);
+    return; // Includes END/ABORT: never enter Nextion recovery on this backend.
+  }
   if (upload.status == UPLOAD_FILE_START) {
     String filename = upload.filename;
     filename.toLowerCase();
@@ -5636,6 +5681,10 @@ void handleTftUpload() {
 }
 
 void handleTftUploadResult() {
+  if (activeDisplayBackend != h5display::Nextion) {
+    server.send(409, "text/plain", "Nextion TFT upload is unavailable for openHASP");
+    return;
+  }
   server.send(tftUploadHttpStatus, "text/plain", tftUploadMessage);
 }
 
@@ -5747,7 +5796,8 @@ void handleFirmwareUploadResult() {
 void handleStatus() {
   server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   server.send(200, "text/plain",
-    String("LittleFS.freeSpace=") + String(LittleFS.totalBytes() - LittleFS.usedBytes()) + "\n" +
+    String("Display.type=") + String(int(activeDisplayBackend)) + "\n" +
+    "LittleFS.freeSpace=" + String(LittleFS.totalBytes() - LittleFS.usedBytes()) + "\n" +
     "TFT.uploadActive=" + String(tftUploadActive ? 1 : 0) + "\n" +
     "TFT.uploaded=" + String(tftUploadSentSize) + "\n" +
     "TFT.size=" + String(tftUploadExpectedSize) + "\n" +
@@ -6045,13 +6095,49 @@ bool stepperIsRunning(Axis* a) {
   return micros() - a->stepStartUs < 50000;
 }
 
-void toScreen(const String &command) {
-  if (tftUploadActive) return;
-  writeNextionCommandRaw(command);
+void writeScreenBytes(const char* bytes, size_t length) {
+  if (!length || !screenTxMutex) return;
+  xSemaphoreTake(screenTxMutex, portMAX_DELAY);
+  if (!tftUploadActive) Serial1.write(reinterpret_cast<const uint8_t*>(bytes), length);
+  xSemaphoreGive(screenTxMutex);
+}
+
+void requestScreenRefresh() {
+  xSemaphoreTake(screenTxMutex, portMAX_DELAY);
+  screenRefreshPending = true;
+  xSemaphoreGive(screenTxMutex);
+}
+
+void setScreenPage(byte page) {
+  char command[24];
+  size_t length = h5display::pageCommand(activeDisplayBackend, page, command, sizeof(command));
+  if (!length) return;
+  xSemaphoreTake(screenTxMutex, portMAX_DELAY);
+  screenPage = page;
+  if (activeDisplayBackend == h5display::OpenHasp) screenCancelPending = true;
+  if (!tftUploadActive) Serial1.write(reinterpret_cast<const uint8_t*>(command), length);
+  xSemaphoreGive(screenTxMutex);
+}
+
+// Called by taskDisplay only. The ready notification requests a full render,
+// even when current values happen to equal the cached hashes.
+bool refreshScreenIfRequested() {
+  xSemaphoreTake(screenTxMutex, portMAX_DELAY);
+  bool refresh = screenRefreshPending;
+  screenRefreshPending = false;
+  if (refresh) {
+    char command[24];
+    size_t length = h5display::pageCommand(activeDisplayBackend, screenPage, command, sizeof(command));
+    if (!tftUploadActive) Serial1.write(reinterpret_cast<const uint8_t*>(command), length);
+  }
+  xSemaphoreGive(screenTxMutex);
+  return refresh;
 }
 
 void setText(const String &id, const String &text) {
-  toScreen(id + ".txt=\"" + text + "\"");
+  char command[1024];
+  size_t length = h5display::textCommand(activeDisplayBackend, id.c_str(), text.c_str(), command, sizeof(command));
+  writeScreenBytes(command, length);
 }
 
 // Returns number of letters printed.
@@ -6526,10 +6612,11 @@ void updateDisplay() {
   if (tftUploadActive) return;
   if (millis() - lastDisplayUpdateTime < getDisplayUpdateIntervalMs()) return;
   lastDisplayUpdateTime = millis();
+  bool forceScreenRefresh = refreshScreenIfRequested();
   bool publishStatus = webBuffersReady && webUiIsConnected();
 
   long newHashLine0 = isOn + spindlePosSync + mode + measure + dupr + starts;
-  bool updateLine0 = lcdHashLine0 != newHashLine0;
+  bool updateLine0 = forceScreenRefresh || lcdHashLine0 != newHashLine0;
   String statusText = "";
   String modeText = "";
   String pitchText = "";
@@ -6551,7 +6638,7 @@ void updateDisplay() {
 
   int rpm = getApproxRpm();
   long newHashLine1 = moveStep + rpm + spindlePos + measure;
-  bool updateLine1 = lcdHashLine1 != newHashLine1;
+  bool updateLine1 = forceScreenRefresh || lcdHashLine1 != newHashLine1;
   String stepText = "";
   String rpmText = "";
   String turnsText = "";
@@ -6575,7 +6662,7 @@ void updateDisplay() {
     x.pos + x.originPos + x.disabled + x.leftStop - x.rightStop +
     z.pos + z.originPos + z.disabled + z.leftStop - z.rightStop +
     y.pos + y.originPos + y.disabled + y.leftStop - y.rightStop + measure + x.pos % 100;
-  bool updateLine2 = lcdHashLine2 != newHashLine2;
+  bool updateLine2 = forceScreenRefresh || lcdHashLine2 != newHashLine2;
   String xText = "";
   String xLeftText = "";
   String xRightText = "";
@@ -6626,7 +6713,7 @@ void updateDisplay() {
       (mode == MODE_Y ? y.pos + y.originPos + (y.leftStop == LONG_MAX ? 123 : y.leftStop) + (y.rightStop == LONG_MIN ? 1234 : y.rightStop) + y.disabled : 0) +
       pitchStatusDirection * 149 +
       (mode == MODE_JOYSTICK ? joystickLatheDirectionZ * 97 + joystickLatheDirectionX * 101 + joystickLatheFeedSignZ * 131 + joystickLatheFeedSignX * 137 + joystickLatheRapid * 17 + JOYSTICK_ENABLED * 19 + spindlePosSync * 151 : 0) + x.pos + x.originPos + z.pos;
-  bool updateLine3 = lcdHashLine3 != newHashLine3;
+  bool updateLine3 = forceScreenRefresh || lcdHashLine3 != newHashLine3;
   String messageText = "";
   if (updateLine3 || publishStatus) {
     messageText = buildDisplayMessage(rpm, numpadResult, spindleStopped, pitchStatusDirection);
@@ -6692,7 +6779,9 @@ bool saveIfChanged() {
 }
 
 void beep() {
-  toScreen("play 0,0,0");
+  char command[24];
+  size_t length = h5display::beepCommand(activeDisplayBackend, command, sizeof(command));
+  writeScreenBytes(command, length);
 }
 
 void taskDisplay(void *param) {
@@ -8692,13 +8781,6 @@ bool processNumpad(int keyCode) {
   return inNumpad;
 }
 
-bool checkForTerminator() {
-  if (nextionBufferIndex < 3) return false;
-  return nextionBuffer[nextionBufferIndex - 3] == 0xFF &&
-      nextionBuffer[nextionBufferIndex - 2] == 0xFF &&
-      nextionBuffer[nextionBufferIndex - 1] == 0xFF;
-}
-
 const byte HEX_TO_KEYCODE[256] = {
   // Page 0 array indexes are "id" attribute values in the Nextion h5.hmi
   [0] = 0,
@@ -8754,52 +8836,91 @@ const byte HEX_TO_KEYCODE[256] = {
   [50] = B_MULTISTART,
 };
 
-int processNextionMessage() {
-  lastNextionPageId = 255;
-  if (nextionBufferIndex < 6) return 0;
-  if (nextionBuffer[0] == 0x65) {
-    byte pageId = nextionBuffer[1];
-    int code = 0;
-    if (pageId == 0x00) {
-      code = HEX_TO_KEYCODE[nextionBuffer[2]];
-    } else if (pageId == 0x01) {
-      switch (nextionBuffer[2]) {
-        case 12: code = B_MODE_GEARS; break;
-        case 13: code = B_MODE_TURN; break;
-        case 14: code = B_MODE_FACE; break;
-        case 15: code = B_MODE_CONE; break;
-        case 16: code = B_MODE_CUT; break;
-        case 17: code = B_MODE_THREAD; break;
-        case 18: code = B_MODE_ELLIPSE; break;
-        case 19: code = B_MODE_GCODE; break;
-        case 20: code = B_MODE_ASYNC; break;
-        case 21: code = B_MODE_Y; break;
-        case 23: code = B_MODE_XGEAR; break;
-        case 25: code = B_MODE_JOYSTICK; break;
-        case 27: code = B_MODE_SLOT; break;
+int screenTouchKeycode(const h5display::Event& touch) {
+  int code = 0;
+  if (touch.page == 0) {
+    code = HEX_TO_KEYCODE[touch.id];
+  } else if (touch.page == 1) {
+    switch (touch.id) {
+      case 12: code = B_MODE_GEARS; break;
+      case 13: code = B_MODE_TURN; break;
+      case 14: code = B_MODE_FACE; break;
+      case 15: code = B_MODE_CONE; break;
+      case 16: code = B_MODE_CUT; break;
+      case 17: code = B_MODE_THREAD; break;
+      case 18: code = B_MODE_ELLIPSE; break;
+      case 19: code = B_MODE_GCODE; break;
+      case 20: code = B_MODE_ASYNC; break;
+      case 21: code = B_MODE_Y; break;
+      case 23: code = B_MODE_XGEAR; break;
+      case 25: code = B_MODE_JOYSTICK; break;
+      case 27: code = B_MODE_SLOT; break;
+    }
+  }
+  if (code) {
+    lastScreenPageId = touch.page;
+    if (!touch.down) code |= PS2_BREAK;
+  }
+  return code;
+}
+
+int readScreenEvent() {
+  if (tftUploadActive) return 0;
+  h5display::Event touch;
+  if (activeDisplayBackend == h5display::OpenHasp) {
+    xSemaphoreTake(screenTxMutex, portMAX_DELAY);
+    bool cancel = screenCancelPending;
+    screenCancelPending = false;
+    xSemaphoreGive(screenTxMutex);
+    if (cancel) {
+      hasPendingScreenPress = false;
+      if (screenTouchState.cancel(touch)) return screenTouchKeycode(touch);
+    }
+    if (hasPendingScreenPress) {
+      hasPendingScreenPress = false;
+      return screenTouchKeycode(pendingScreenPress);
+    }
+  }
+  // Consume enough bytes for useful throughput, but yield after a bounded batch.
+  for (int budget = 0; budget < 256 && Serial1.available() > 0; ++budget) {
+    int value = Serial1.read();
+    if (value < 0) break;
+    if (!screenReceiver.feed(activeDisplayBackend, byte(value), touch)) continue;
+    if (touch.kind == h5display::Ready || touch.kind == h5display::Page) {
+      if (touch.kind == h5display::Ready) {
+        requestScreenRefresh();
+      } else {
+        // Local BACK (and other page state messages) report the panel's page.
+        xSemaphoreTake(screenTxMutex, portMAX_DELAY);
+        screenPage = touch.page;
+        xSemaphoreGive(screenTxMutex);
       }
+      hasPendingScreenPress = false;
+      if (screenTouchState.cancel(touch)) return screenTouchKeycode(touch);
+      continue;
     }
-    if (code != 0) {
-      lastNextionPageId = pageId;
-      if (nextionBuffer[3] == 0) code |= PS2_BREAK;
-    }
-    return code;
+    if (activeDisplayBackend == h5display::Nextion) return screenTouchKeycode(touch);
+    h5display::Event events[2];
+    unsigned count = screenTouchState.accept(touch, events);
+    if (!count) continue;
+    if (count == 2) { pendingScreenPress = events[1]; hasPendingScreenPress = true; }
+    return screenTouchKeycode(events[0]);
   }
   return 0;
 }
 
-void setModeFromUi(int modeToSet, bool eventFromNextion) {
+void setModeFromUi(int modeToSet, bool eventFromScreen) {
   setModeFromTask(modeToSet);
-  if (eventFromNextion && lastNextionPageId == 1) toScreen("page 0");
+  if (eventFromScreen && lastScreenPageId == 1) setScreenPage(0);
 }
 
 void processKeypadEvent() {
   processWebUiMoveFailsafe();
   int event = 0;
-  bool eventFromNextion = false;
+  bool eventFromScreen = false;
   bool eventUsesKeyboardMap = false;
   bool eventFromWebUi = false;
-  lastNextionPageId = 255;
+  lastScreenPageId = 255;
   WebUiEvent webUiEvent = {};
   if (readWebUiEvent(&webUiEvent)) {
     event = webUiEvent.actionCode;
@@ -8812,19 +8933,9 @@ void processKeypadEvent() {
   } else if (keyboard.available()) {
     event = keyboard.read();
     eventUsesKeyboardMap = true;
-  } else if (!tftUploadActive && Serial1.available() > 0) {
-    byte incomingByte = Serial1.read();
-    if (nextionBufferIndex < NEXTION_BUFFER_LENGTH) {
-      nextionBuffer[nextionBufferIndex] = incomingByte;
-      nextionBufferIndex++;
-    } else {
-      nextionBufferIndex = 0;
-    }
-    if (checkForTerminator()) {
-      event = processNextionMessage();
-      eventFromNextion = event != 0 && lastNextionPageId != 255;
-      nextionBufferIndex = 0;
-    }
+  } else {
+    event = readScreenEvent();
+    eventFromScreen = event != 0 && lastScreenPageId != 255;
   }
   if (event == 0) return;
   int physicalKeyCode = event & 0xFF;
@@ -8917,13 +9028,13 @@ void processKeypadEvent() {
   } else if (keyCode == B_STOPB && ACTIVE_Y) {
     buttonRightStopPress(&y);
   } else if (keyCode == B_MODE_Y && ACTIVE_Y) {
-    setModeFromUi(MODE_Y, eventFromNextion);
+    setModeFromUi(MODE_Y, eventFromScreen);
   } else if (keyCode == B_MODE_ELLIPSE) {
-    setModeFromUi(MODE_ELLIPSE, eventFromNextion);
+    setModeFromUi(MODE_ELLIPSE, eventFromScreen);
   } else if (keyCode == B_MODE_GCODE) {
-    setModeFromUi(MODE_GCODE, eventFromNextion);
+    setModeFromUi(MODE_GCODE, eventFromScreen);
   } else if (keyCode == B_MODE_ASYNC) {
-    setModeFromUi(MODE_ASYNC, eventFromNextion);
+    setModeFromUi(MODE_ASYNC, eventFromScreen);
   } else if (keyCode == B_MULTISTART) {
     buttonMultistartPress();
   } else if (keyCode == B_DISPL) {
@@ -8950,11 +9061,11 @@ void processKeypadEvent() {
   } else if (keyCode == B_MEASURE) {
     buttonMeasurePress();
   } else if (keyCode == B_MODE_GEARS) {
-    setModeFromUi(MODE_NORMAL, eventFromNextion);
+    setModeFromUi(MODE_NORMAL, eventFromScreen);
   } else if (keyCode == B_MODE_TURN) {
-    setModeFromUi(MODE_TURN, eventFromNextion);
+    setModeFromUi(MODE_TURN, eventFromScreen);
   } else if (keyCode == B_MODE) {
-    if (eventFromNextion) toScreen("page 1");
+    if (eventFromScreen) setScreenPage(1);
     else if (mode == MODE_NORMAL) setModeFromTask(MODE_XGEAR);
     else if (mode == MODE_XGEAR) setModeFromTask(MODE_JOYSTICK);
     else if (mode == MODE_JOYSTICK) setModeFromTask(MODE_TURN);
@@ -8970,19 +9081,19 @@ void processKeypadEvent() {
     else if (mode == MODE_Y) setModeFromTask(MODE_NORMAL);
     else setModeFromTask(MODE_NORMAL);
   } else if (keyCode == B_MODE_XGEAR) {
-    setModeFromUi(MODE_XGEAR, eventFromNextion);
+    setModeFromUi(MODE_XGEAR, eventFromScreen);
   } else if (keyCode == B_MODE_JOYSTICK) {
-    setModeFromUi(MODE_JOYSTICK, eventFromNextion);
+    setModeFromUi(MODE_JOYSTICK, eventFromScreen);
   } else if (keyCode == B_MODE_FACE) {
-    setModeFromUi(MODE_FACE, eventFromNextion);
+    setModeFromUi(MODE_FACE, eventFromScreen);
   } else if (keyCode == B_MODE_CONE) {
-    setModeFromUi(MODE_CONE, eventFromNextion);
+    setModeFromUi(MODE_CONE, eventFromScreen);
   } else if (keyCode == B_MODE_CUT) {
-    setModeFromUi(MODE_CUT, eventFromNextion);
+    setModeFromUi(MODE_CUT, eventFromScreen);
   } else if (keyCode == B_MODE_SLOT) {
-    setModeFromUi(MODE_SLOT, eventFromNextion);
+    setModeFromUi(MODE_SLOT, eventFromScreen);
   } else if (keyCode == B_MODE_THREAD) {
-    setModeFromUi(MODE_THREAD, eventFromNextion);
+    setModeFromUi(MODE_THREAD, eventFromScreen);
   }
 }
 
@@ -9783,8 +9894,12 @@ void setup() {
     webUiEventQueue = xQueueCreate(WEB_UI_EVENT_QUEUE_LENGTH, sizeof(WebUiEvent));
   }
 
-  // Nextion.
+  // Both backends use the existing H5 display connector and baud rate.
+  activeDisplayBackend = DISPLAY_TYPE == 1 ? h5display::OpenHasp : h5display::Nextion;
+  screenTxMutex = xSemaphoreCreateMutex();
+  configASSERT(screenTxMutex);
   Serial1.begin(NEXTION_NORMAL_BAUD, SERIAL_8N1, 44, 43);
+  if (activeDisplayBackend == h5display::OpenHasp) requestScreenRefresh();
 
   // Initialize the keyboard.
   keyboard.begin(KEY_DATA, KEY_CLOCK);

@@ -27,9 +27,13 @@ screen and mode selector at 800 × 480 for an ESP32-based display, with the
 CrowPanel Advance DIS02050A as the intended target. It includes JSONL layouts,
 a font, previews, and mappings for all live fields and touch actions.
 
-These are layout assets only. CrowPanel openHASP firmware support and the
-NanoELS serial integration still need implementation or hardware verification.
-See the package README for installation requirements and validation limits.
+H5 now includes a selectable [openHASP display adapter](DISPLAY_ADAPTER.md),
+alongside the default Nextion backend. Select it in Machine Config → Display
+and save/restart. It expects a generic UART transport extension on the panel;
+that extension and CrowPanel openHASP board support are not included here.
+The existing widgets can be rearranged without H5 changes if their page IDs
+and identities are preserved. See the adapter contract and package README for
+integration requirements and validation limits.
 
 ### Nextion displays
 
