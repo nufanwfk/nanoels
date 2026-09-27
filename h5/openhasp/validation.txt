@@ -1,4 +1,15 @@
 PASS: 18 live text fields, 41 main firmware action IDs, 13 mode action IDs.
 PASS: 74 page/object records; unique IDs, valid JSONL, all objects within 800x480.
-NOT RUN: embedded openHASP load, CrowPanel hardware, UART bridge.
+NOT RUN: embedded openHASP load, CrowPanel hardware, physical UART bridge.
 PASS: all static glyphs present; no overlapping button hit rectangles.
+
+Bridge software validation (2026-09-27):
+PASS: generated header matches mapping.json; mapped layout tags agree.
+PASS: C++11 host tests, -Wall -Wextra -Werror -pedantic.
+PASS: address and undefined-behavior sanitizers; leak detection disabled because
+      this execution environment does not support LeakSanitizer's process scan.
+PASS: 18 text fields, 60 touch widgets, frame splits, malformed/oversized frame
+      recovery, degree/JSON escaping, and press/release/page-change handling.
+SOURCE REVIEW ONLY: openHASP custom-hook adapter.
+NOT RUN: Arduino/openHASP adapter build, DIS02050A board build, hardware timing,
+         touch cancellation on real LVGL objects, power-loss/reconnect behavior.

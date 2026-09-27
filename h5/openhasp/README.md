@@ -1,8 +1,11 @@
 # NanoELS H5 layouts for openHASP
 
 800 × 480 landscape layouts for the CrowPanel Advance DIS02050A project.
-These are the screen definitions and the field/event mapping. They do not
-implement a Nextion serial emulator or establish board support for openHASP.
+This folder contains the screen definitions and field/event mapping, plus an
+experimental display-side [serial bridge](bridge/README.md). The bridge core has
+host tests; the openHASP adapter is not yet compiled or hardware-tested, and
+DIS02050A board support remains unverified. JSONL alone does not implement the
+serial integration.
 
 ## Install the layouts
 
@@ -14,8 +17,8 @@ implement a Nextion serial emulator or establish board support for openHASP.
 3. Select `/pages.jsonl` as the startup layout if necessary and reboot/reload it.
 4. Send `page 1` to show the main screen; send `page 2` to inspect the mode menu.
    The display's startup page should be 1.
-5. The machine buttons publish normal openHASP events. They need the later
-   controller integration to perform their actions. The added BACK button
+5. The machine buttons publish normal openHASP events. They need the experimental
+   bridge integrated into the display firmware to perform their actions. The added BACK button
    on page 2 already returns locally to page 1.
 
 Upload the two files individually; the ZIP itself is a distribution bundle.
@@ -82,7 +85,11 @@ These are openHASP commands, not commands that stock H5 currently sends.
 The supplied `demo.cmd` only sets illustrative display values; it does not
 send machine commands. Restore live values before using a connected controller.
 
-## Event contract for the later bridge
+## Event contract for the bridge
+
+See [bridge/README.md](bridge/README.md) for implementation, host tests,
+installation requirements and remaining limitations. The layout contract below
+is also useful when implementing a different transport adapter.
 
 Every actionable machine widget has a `tag` containing its `nextion_page`
 and `nextion_id`. `mapping.json` also records the H5 action constant.
@@ -93,7 +100,8 @@ For a bridge that emulates Nextion touch packets:
 - openHASP `up` or `release` → `65 PP II 00 FF FF FF`.
 - Ignore `long` and `hold`; do not translate them into repeated presses.
 - Track the active press, and send its release using the original page and
-  ID even if H5 changes the page while the finger is down.
+  ID even if H5 changes the page while the finger is down. The supplied bridge
+  releases before switching pages so a hidden widget cannot leave a key latched.
 - Do not forward the local BACK action to NanoELS.
 
 For example, main-screen Z-left jog is `p1b48`, tagged Nextion page 0,
@@ -108,9 +116,9 @@ All buttons are momentary (`toggle:false`). The controller owns ON/OFF,
 axis enable state, mode selection, units, numeric entry, and workflow state.
 Press/release handling matters for jog and stop behavior.
 
-The H5 display-output subset found in the audited source is:
+The H5 display-output subset supported by the bridge core is:
 
-| H5 output | Future integration behavior |
+| H5 output | Bridge behavior |
 | --- | --- |
 | `<name>.txt="..."` | Map name to `.text` on the corresponding openHASP object |
 | `page 0` | openHASP `page 1` |
@@ -118,11 +126,11 @@ The H5 display-output subset found in the audited source is:
 | `play 0,0,0` | Optional local beep; not a layout operation |
 
 H5 terminates commands with three `0xFF` bytes and uses 115200 baud. Its font
-uses byte `0xDF` as a degree glyph; a future parser must explicitly convert
+uses byte `0xDF` as a degree glyph; the bridge explicitly converts
 that byte to Unicode `°` (UTF-8 C2 B0), rather than treating it as normal Latin-1.
 Do not run H5's Nextion TFT uploader against openHASP. Upload JSONL/fonts through
-openHASP instead. Serial event routing is separate work: JSONL alone does not
-make openHASP emit the Nextion packets above.
+openHASP instead. The bridge's custom firmware hooks provide serial event
+routing; JSONL alone does not make openHASP emit the Nextion packets above.
 
 ## Provenance
 
