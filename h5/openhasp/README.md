@@ -9,16 +9,16 @@ implement a Nextion serial emulator or establish board support for openHASP.
 1. Start with a working openHASP installation for your exact board, configured
    for 800 × 480 landscape with PSRAM and TrueType font support. This layout
    targets the documented openHASP 0.7.0 interface; board firmware is not included.
-2. Upload `mono.ttf` and `pages.jsonl` to the root of the display filesystem
+2. Upload `mono.ttf`, the `icons/` directory (all 13 PNGs), and `pages.jsonl` to the root of the display filesystem
    through openHASP's file editor. Keep those filenames unchanged.
 3. Select `/pages.jsonl` as the startup layout if necessary and reboot/reload it.
 4. Send `page 1` to show the main screen; send `page 2` to inspect the mode menu.
    The display's startup page should be 1.
-5. The machine buttons publish normal openHASP events. They need the later
-   controller integration to perform their actions. The added BACK button
+5. The machine buttons publish normal openHASP events. Use the H5 openHASP backend and the panel generic UART extension
+   to connect them to the controller. The added BACK button
    on page 2 already returns locally to page 1.
 
-Upload the two files individually; the ZIP itself is a distribution bundle.
+Upload the files individually, preserving `/icons/*.png` paths. Older ZIP bundles do not include the new icons.
 No picture backgrounds or icon-font downloads are required. The bundled
 DejaVu Sans Mono font supplies both text and navigation symbols.
 
@@ -48,7 +48,8 @@ image. Intentional adaptations:
 - Main-screen symbols use comparable Unicode glyphs. Small spindle captions
   use STEP, RPM, REV, and a degree symbol.
 - The mode selector preserves its three-column order and white/blue coding;
-  the decorative machining pictograms are omitted in this first conversion.
+  13 original machining pictograms decorate the existing buttons. Image objects
+  are non-clickable and retain the original button touch targets.
 - The keypad uses the newer project order 1–9, then 0. The older annotated
   README screenshot shows 0 first.
 - Limit glyphs and their numeric values both emit the corresponding limit
@@ -78,11 +79,20 @@ jsonl {"page":1,"id":2,"text":"5 passes?"}
 page 2
 ```
 
-These are openHASP commands, not commands that stock H5 currently sends.
+The H5 openHASP backend sends these commands. The default Nextion backend
+still sends the original binary-terminated commands.
 The supplied `demo.cmd` only sets illustrative display values; it does not
 send machine commands. Restore live values before using a connected controller.
 
-## Event contract for the later bridge
+## Current integration and possible Nextion compatibility
+
+The delivered H5 adapter uses `event p1b48 down`, `event p1b48 release`,
+`page 2`, and `ready 1` lines from the panel generic UART extension. See
+[implementation review](../docs/IMPLEMENTATION_REVIEW.md). It does not require
+the panel to emulate Nextion. The binary packet mapping below describes a
+possible future panel-side compatibility layer, not the current UART protocol.
+
+### Nextion packet mapping
 
 Every actionable machine widget has a `tag` containing its `nextion_page`
 and `nextion_id`. `mapping.json` also records the H5 action constant.
@@ -163,3 +173,10 @@ on hardware before relying on the readouts.
 `source-components.json` preserves the extracted source geometry for future
 refinement. `validation.txt` records what was and was not checked.
 Upstream NanoELS and bundled-font notices are included in the license files.
+
+## Rebuilding the icons and previews
+
+Install Pillow and CairoSVG, then run `python3 h5/openhasp/tools/build_icons.py`
+from the repository root. The generator is the editable source for 13 original
+SVGs, transparent PNGs, image objects and offline previews. Runtime uses PNG,
+not SVG. See [icons/README.md](icons/README.md) for licensing and limitations.

@@ -2,3 +2,10 @@ PASS: 18 live text fields, 41 main firmware action IDs, 13 mode action IDs.
 PASS: 74 page/object records; unique IDs, valid JSONL, all objects within 800x480.
 NOT RUN: embedded openHASP load, CrowPanel hardware, UART bridge.
 PASS: all static glyphs present; no overlapping button hit rectangles.
+
+Follow-up 2026-09-27: 13 original mode icons added as non-clickable image objects.
+Compared all previous JSONL objects against adapter base 77c7fe8: only mode text
+left-padding changed; all original IDs, tags, touch rectangles and other properties
+preserved. Generator checks unique IDs, icon bounds and action tags. Both offline
+previews inspected. H5 host tests pass. PNG loading/click-through/memory on device
+remain untested. See ../PROJECT_TODO.md for board and hardware work.
