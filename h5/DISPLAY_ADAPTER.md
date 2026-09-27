@@ -28,15 +28,14 @@ must not be paired with this openHASP backend.
   helpers instead of constructing and reparsing Nextion command strings.
 - `display_mapping.h` contains fixed mappings matching `openhasp/mapping.json`.
 - Nextion commands keep their three `FF` terminators. openHASP commands end in LF.
-- The receiver has one fixed 512-byte line buffer and no dynamic JSON document.
-  It extracts an unescaped top-level `event` string, tolerates whitespace and
-  field reordering, and skips extra metadata with bounded nesting. It rejects
-  malformed/truncated lines, duplicate event fields, unknown topics and values.
-  No additional library is required.
+- The receiver has one fixed 512-byte line buffer. Touch events use three
+  space-separated tokens: `event <object-topic> <event-name>`. No incoming JSON
+  parsing or additional library is required. Malformed/truncated lines,
+  extra tokens, unknown topics and unsupported events are ignored.
 - UART commands from the keypad/display tasks are serialized with a mutex.
   No display parsing or backend selection is added to the step-generation loop.
 
-## Generic UART transport contract, version 1
+## Generic UART transport contract, version 2
 
 The future panel extension should transport ordinary openHASP commands and
 state messages. It must not contain NanoELS field or action mappings.
@@ -65,18 +64,27 @@ fixed mappings and relevant UI behavior.
 
 ### Panel → H5
 
-Each line is `<state-subtopic> <payload>` followed by LF (CRLF also accepted):
+Touch events use `event <object-topic> <event-name>`. Page and readiness
+notifications have two tokens. Fields use exactly one ASCII space; each line
+ends in LF (CRLF is also accepted):
 
 ```text
-p1b48 {"event":"down","tag":{"nextion_page":0,"nextion_id":48}}
-p1b48 {"event":"release","tag":{"nextion_page":0,"nextion_id":48}}
+event p1b48 down
+event p1b48 release
 page 2
+ready 1
 ```
 
-Forward the subtopic (`p1b48`), not a full MQTT topic (`hasp/name/state/p1b48`).
-Keep pages unnamed so openHASP uses numeric object topics. Do not mix console
-prompts, command echoes or diagnostic logs into this UART. MQTT may continue
-operating independently on the panel.
+This version replaces the earlier JSON event payload format; update both ends
+of the link together. The earlier format is not accepted. Panel-to-H5 messages
+contain no MQTT packet framing or JSON. H5-to-panel JSONL commands are unchanged.
+
+Forward the object subtopic (`p1b48`), not a full MQTT topic. Keep pages unnamed
+so openHASP uses numeric object topics. The panel extension extracts the event
+name using openHASP's existing JSON library; tags and other metadata stay off
+this UART. Non-event state messages remain MQTT-only, except page notifications.
+Do not mix console prompts, command echoes or diagnostic logs into the UART.
+MQTT may continue operating independently on the panel.
 
 The maximum input is **512 bytes before LF**, including an optional final CR.
 Oversized lines and lines containing NUL are discarded through the next LF;
@@ -85,7 +93,7 @@ ignored. There is no timeout that reinterprets a partially received line.
 
 `down` triggers a press; `up`, `release` and `lost` trigger a release. `long`,
 `hold` and `changed` do not repeat machine actions. Only the allowlisted widget
-topic selects the H5 action; tag contents are ignored. Numeric limit aliases
+topic selects the H5 action; the wire format carries no tags. Numeric limit aliases
 map to their existing hotspot actions. Local BACK has no H5 button action; its
 normal page-state notification updates H5's remembered page.
 
@@ -143,8 +151,8 @@ python3 h5/tests/run_display_tests.py
 They require Python 3 and a C++11 compiler (`CXX`/`CXXFLAGS` can override it).
 They test the protocol header and compile the actual H5 adapter functions with
 a fake UART/mutex. Fixtures come from the existing layout mapping: all 18 text
-fields and 60 widget mappings are exercised for both backends, along with JSON
-escaping, malformed-frame recovery, duplicate/stale releases, page cancellation,
+fields and 60 widget mappings are exercised for both backends, along with outgoing
+JSON escaping, malformed-frame recovery, duplicate/stale releases, page cancellation,
 ready refresh and output suppression during TFT upload. Temporary binaries are
 removed automatically.
 
@@ -159,17 +167,17 @@ on the actual panel. Panel firmware integration and hardware testing remain
 unfinished. See [Self-compile firmware](README.md#self-compile-firmware-with-arduino-ide)
 for the full H5 build; no new libraries are needed for this adapter.
 
-### Build validation
+### Build validation (token event version)
 
-Both the adapter and unchanged main (`6e1e8ce`) compiled for ESP32-S3 using
+Both the version 2 adapter and unchanged main (`6e1e8ce`) compiled for ESP32-S3 using
 Arduino-ESP32 3.0.7, WebSockets 2.6.1 and PS2KeyAdvanced 1.0.9, with 16 MB
 flash, the `default_8MB` partition scheme and OPI PSRAM.
 
 | Build | Flash bytes | Static RAM bytes |
 | --- | ---: | ---: |
 | Unchanged main | 1,240,913 | 51,856 |
-| Both display backends | 1,246,341 | 52,160 |
-| Increase | 5,428 | 304 |
+| Both display backends | 1,245,457 | 52,160 |
+| Increase | 4,544 | 304 |
 
 This measures the complete adapter change against main, not two separate
 single-backend builds. Static RAM excludes task-stack and runtime heap usage.

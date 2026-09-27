@@ -5,7 +5,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <initializer_list>
 #include "display_mapping.h"
 
 namespace h5display {
@@ -16,87 +15,6 @@ struct Event {
   uint8_t page = 0, id = 0; // Existing H5/Nextion page and component identity.
   uint16_t source = 0;      // Original openHASP widget, including limit aliases.
   bool down = false;
-};
-
-// Only extract an unescaped top-level event string. The remaining JSON is
-// skipped with bounded nesting, so metadata cannot masquerade as an event.
-// This is a schema reader, not a general JSON document or Unicode decoder.
-class EventJson {
-public:
-  explicit EventJson(const char* text) : p_(text) {}
-  bool read(char* event, size_t capacity) {
-    if(!take('{')) return false;
-    bool found = false;
-    if(take('}')) return false;
-    do {
-      const char* key; size_t keySize;
-      if(!string(key, keySize) || !take(':')) return false;
-      if(keySize == 5 && memcmp(key, "event", 5) == 0) {
-        const char* value; size_t size;
-        if(found || !string(value, size) || size >= capacity) return false;
-        memcpy(event, value, size); event[size] = 0; found = true;
-      } else if(!skipValue(0)) return false;
-    } while(take(','));
-    if(!take('}')) return false;
-    space();
-    return found && *p_ == 0;
-  }
-private:
-  const char* p_;
-  void space() { while(*p_ == ' ' || *p_ == '\t' || *p_ == '\r' || *p_ == '\n') ++p_; }
-  bool take(char c) { space(); if(*p_ != c) return false; ++p_; return true; }
-  static bool digit(char c) { return c >= '0' && c <= '9'; }
-  bool string(const char*& start, size_t& size) {
-    if(!take('"')) return false;
-    start = p_;
-    while(*p_ && *p_ != '"') {
-      if(static_cast<uint8_t>(*p_) < 32) return false;
-      if(*p_++ == '\\') {
-        if(!*p_) return false;
-        const char escape = *p_++;
-        if(escape == 'u') {
-          for(int i = 0; i < 4; ++i) {
-            const char c = *p_;
-            if(!digit(c) && !(c >= 'a' && c <= 'f') && !(c >= 'A' && c <= 'F')) return false;
-            ++p_;
-          }
-        } else if(!strchr("\"\\/bfnrt", escape)) return false;
-      }
-    }
-    if(*p_ != '"') return false;
-    size = static_cast<size_t>(p_ - start); ++p_; return true;
-  }
-  bool skipValue(unsigned depth) {
-    if(depth > 8) return false;
-    space();
-    if(*p_ == '"') { const char* s; size_t n; return string(s, n); }
-    if(take('{')) {
-      if(take('}')) return true;
-      do { const char* s; size_t n;
-        if(!string(s, n) || !take(':') || !skipValue(depth + 1)) return false;
-      } while(take(','));
-      return take('}');
-    }
-    if(take('[')) {
-      if(take(']')) return true;
-      do { if(!skipValue(depth + 1)) return false; } while(take(','));
-      return take(']');
-    }
-    for(const char* literal : {"true", "false", "null"}) {
-      const size_t n = strlen(literal);
-      if(strncmp(p_, literal, n) == 0) { p_ += n; return true; }
-    }
-    if(*p_ == '-') ++p_;
-    if(*p_ == '0') ++p_;
-    else { if(!digit(*p_)) return false; while(digit(*p_)) ++p_; }
-    if(*p_ == '.') { ++p_; if(!digit(*p_)) return false; while(digit(*p_)) ++p_; }
-    if(*p_ == 'e' || *p_ == 'E') {
-      ++p_; if(*p_ == '+' || *p_ == '-') ++p_;
-      if(!digit(*p_)) return false;
-      while(digit(*p_)) ++p_;
-    }
-    return true;
-  }
 };
 
 // Bounded writer: a truncated command is never sent to the display.
@@ -202,14 +120,15 @@ private:
     if(strcmp(buffer_, "page 1") == 0 || strcmp(buffer_, "page 2") == 0) {
       event.kind = Page; event.page = buffer_[5] - '1'; return true;
     }
-    char* separator = strchr(buffer_, ' ');
+    if(strncmp(buffer_, "event ", 6) != 0) return false;
+    char* topic = buffer_ + 6;
+    char* separator = strchr(topic, ' ');
     if(!separator) return false;
     *separator++ = 0;
     const Widget* widget = nullptr;
-    for(const auto& w : widgets) if(strcmp(buffer_, w.topic) == 0) { widget = &w; break; }
+    for(const auto& w : widgets) if(strcmp(topic, w.topic) == 0) { widget = &w; break; }
     if(!widget) return false;
-    char value[12];
-    if(!EventJson(separator).read(value, sizeof(value))) return false;
+    const char* value = separator;
     const bool down = strcmp(value, "down") == 0;
     if(!down && strcmp(value, "up") && strcmp(value, "release") && strcmp(value, "lost")) return false;
     event.kind = Touch; event.page = widget->page; event.id = widget->id;

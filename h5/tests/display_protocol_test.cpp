@@ -39,7 +39,7 @@ void formats() {
 }
 void events() {
   Receiver rx;
-  const std::string msg = "p1b48 {\"tag\":{\"nextion_page\":0}, \"event\" : \"down\"}\r\n";
+  const std::string msg = "event p1b48 down\r\n";
   for(size_t i = 0; i <= msg.size(); ++i) {
     rx.reset();
     auto a = receive(rx,OpenHasp,msg.substr(0,i));
@@ -48,29 +48,31 @@ void events() {
     const auto e = a.empty() ? b[0] : a[0];
     assert(e.page == 0 && e.id == 48 && e.down);
   }
-  auto a = receive(rx,OpenHasp,"p1b13 {\"event\":\"down\"}\np1b13 {\"event\":\"up\"}\n");
+  auto a = receive(rx,OpenHasp,"event p1b13 down\nevent p1b13 up\n");
   assert(a.size() == 2 && a[0].id == 36 && a[0].down && !a[1].down);
   a=receive(rx,OpenHasp,"ready 1\npage 1\npage 2\n");
   assert(a.size()==3 && a[0].kind==Ready && a[1].page==0 && a[2].page==1);
   for(const char* ev : {"long","hold","changed","UP","bogus"})
-    assert(receive(rx,OpenHasp,std::string("p1b48 {\"event\":\"")+ev+"\"}\n").empty());
+    assert(receive(rx,OpenHasp,std::string("event p1b48 ")+ev+"\n").empty());
   for(const char* topic : {"p2b100","p1b2","p1b255","p1b48junk","p0b48"})
-    assert(receive(rx,OpenHasp,std::string(topic)+" {\"event\":\"down\"}\n").empty());
+    assert(receive(rx,OpenHasp,std::string("event ")+topic+" down\n").empty());
   const std::vector<std::string> bad = {
-    "{\"event\":\"down\"", "{\"event\":\"down\"}junk", "{\"event\":true}",
-    "{\"event\":\"down\",}", "{\"event\":\"down\",\"event\":\"up\"}",
-    "{\"tag\":{\"event\":\"down\"}}", "{\"tag\":\"event down\"}",
-    "{\"event\":\"down\",\"x\":01}", "{\"event\":\"down\",\"x\":1e}",
-    "{\"event\":\"down\",\"x\":\"\\u0\"}", "{\"event\":\"down\",\"x\":\"\\q\"}"
+    "event", "event p1b48", "event p1b48 ", "event p1b48 down junk",
+    "event  p1b48 down", "event p1b48  down", "event p1b48 down ",
+    "event\tp1b48 down", "Event p1b48 down", "event p1b48 down\rup",
+    "p1b48 {\"event\":\"down\"}", "page 3", "ready 0"
   };
-  for(const auto& json : bad) {
-    assert(receive(rx,OpenHasp,"p1b48 "+json+"\n").empty());
-    assert(receive(rx,OpenHasp,"p1b48 {\"event\":\"release\"}\n").size()==1);
+  for(const auto& line : bad) {
+    assert(receive(rx,OpenHasp,line+"\n").empty());
+    assert(receive(rx,OpenHasp,"event p1b48 release\n").size()==1);
   }
-  assert(receive(rx,OpenHasp,"p1b48 {\"x\":[null,true,false,-1.2e+3,{\"a\":\"\\\"\"}],\"event\":\"down\"}\n").size()==1);
-  assert(receive(rx,OpenHasp,std::string(513,'x')+"p1b48 {\"event\":\"down\"}\n").empty());
-  assert(receive(rx,OpenHasp,std::string("p1b48 ")+std::string(1,'\0')+"{\"event\":\"down\"}\n").empty());
-  assert(receive(rx,OpenHasp,"p1b48 {\"event\":\"down\"}\n").size()==1);
+  for(const char* ev : {"up","release","lost"}) {
+    auto released = receive(rx,OpenHasp,std::string("event p1b48 ")+ev+"\n");
+    assert(released.size()==1 && !released[0].down);
+  }
+  assert(receive(rx,OpenHasp,std::string(513,'x')+"event p1b48 down\n").empty());
+  assert(receive(rx,OpenHasp,std::string("event p1b48 ")+std::string(1,'\0')+"down\n").empty());
+  assert(receive(rx,OpenHasp,"event p1b48 down\n").size()==1);
 
   std::string nx = std::string("\x65\x00\x30\x01",4)+"\xFF\xFF\xFF";
   a=receive(rx,Nextion,nx);
@@ -85,10 +87,10 @@ void events() {
 }
 void lifecycle() {
   Receiver rx; TouchState held; Event out[2];
-  auto down=receive(rx,OpenHasp,"p1b48 {\"event\":\"down\"}\n")[0];
+  auto down=receive(rx,OpenHasp,"event p1b48 down\n")[0];
   assert(held.accept(down,out)==1 && out[0].down);
   assert(held.accept(down,out)==0);
-  auto newer=receive(rx,OpenHasp,"p1b49 {\"event\":\"down\"}\n")[0];
+  auto newer=receive(rx,OpenHasp,"event p1b49 down\n")[0];
   assert(held.accept(newer,out)==2 && !out[0].down && out[0].id==48 && out[1].id==49);
   down.down=false; assert(held.accept(down,out)==0);
   assert(held.cancel(out[0]) && !out[0].down && out[0].id==49);

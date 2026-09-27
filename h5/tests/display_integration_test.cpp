@@ -46,7 +46,7 @@ int main() {
         const byte bytes[]={0x65,test.page,test.id,1,255,255,255,0x65,test.page,test.id,0,255,255,255};
         Serial1.inject(std::string(reinterpret_cast<const char*>(bytes),sizeof(bytes)));
       } else {
-        Serial1.inject(std::string(test.topic)+" {\"event\":\"down\"}\n"+test.topic+" {\"event\":\"release\"}\n");
+        Serial1.inject(std::string("event ")+test.topic+" down\nevent "+test.topic+" release\n");
       }
       assert(readScreenEvent()==test.action);
       assert(lastScreenPageId==test.page);
@@ -55,15 +55,15 @@ int main() {
     }
   }
   activeDisplayBackend=h5display::OpenHasp;
-  Serial1.inject("p1b48 {\"event\":\"down\"}\n");
+  Serial1.inject("event p1b48 down\n");
   assert(readScreenEvent()==B_LEFT);
   setScreenPage(1);
   assert(readScreenEvent()==(B_LEFT|PS2_BREAK));
   assert(lastScreenPageId==0); // release retains the old page
-  Serial1.inject("p1b48 {\"event\":\"release\"}\n");
+  Serial1.inject("event p1b48 release\n");
   assert(readScreenEvent()==0); // already released by the page change
 
-  Serial1.inject("p2b17 {\"event\":\"down\"}\nready 1\n");
+  Serial1.inject("event p2b17 down\nready 1\n");
   assert(readScreenEvent()==B_MODE_THREAD);
   assert(readScreenEvent()==(B_MODE_THREAD|PS2_BREAK));
   Serial1.output.clear();
@@ -76,11 +76,11 @@ int main() {
   Serial1.output.clear(); assert(refreshScreenIfRequested());
   assert(Serial1.output=="page 1\n");
 
-  Serial1.inject("p1b48 {\"event\":\"down\"}\np1b49 {\"event\":\"down\"}\n");
+  Serial1.inject("event p1b48 down\nevent p1b49 down\n");
   assert(readScreenEvent()==B_LEFT);
   assert(readScreenEvent()==(B_LEFT|PS2_BREAK));
   assert(readScreenEvent()==B_RIGHT);
-  Serial1.inject("p1b48 {\"event\":\"up\"}\np1b49 {\"event\":\"up\"}\n");
+  Serial1.inject("event p1b48 up\nevent p1b49 up\n");
   assert(readScreenEvent()==(B_RIGHT|PS2_BREAK));
   assert(readScreenEvent()==0);
 
