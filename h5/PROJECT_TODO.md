@@ -20,6 +20,29 @@ and evidence. The physical panel is CrowPanel Advance 5-inch **DIS02050A**.
   prepared from vendor examples; host checks and helper compilation pass.
   Exact PCB identification, complete firmware build and hardware validation remain.
 
+## Architecture review: configurable mappings (2026-09-27)
+
+The owner wants a generic, configuration-based mapping rather than an H5 header
+tied specifically to openHASP. Current `display_mapping.h` maps Nextion names
+(e.g. `tZ`) to openHASP page/object IDs and maps touch sources back to existing
+Nextion identities. Adding a new backend currently requires mapping and protocol
+code changes, not just replacing a configuration file.
+
+- [ ] **Conditional redesign, deferred pending item 5:** if retaining multiple
+  native H5 backends, separate logical fields/actions, template bindings and
+  backend protocol implementations. Load bindings from configuration so template
+  changes do not require rebuilding H5. Existing names such as `tZ` could remain
+  legacy logical identifiers initially; a new wire protocol still needs code.
+- If openHASP implements the required Nextion compatibility on the panel, this
+  H5 mapping redesign is unnecessary for this integration: H5 can use its Nextion
+  interface and panel-side configuration handles the layout bindings. Preserve
+  the configurable-template goal on the panel side.
+- No redesign or emulator implementation is authorized by this note. Decide the
+  protocol direction before undertaking the conditional mapping refactor.
+
+Hardware testing and PCB revision confirmation are on hold: the owner has not
+received the panel yet. Software review and build work can continue.
+
 ## Follow-up delivery
 
 - NanoELS: `codex/display-project-followup` (icons, checklist and review/test docs).
