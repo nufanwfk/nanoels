@@ -25,6 +25,30 @@ Upload the two files individually; the ZIP itself is a distribution bundle.
 No picture backgrounds or icon-font downloads are required. The bundled
 DejaVu Sans Mono font supplies both text and navigation symbols.
 
+## CrowPanel Advance DIS02050A V1.3 wiring
+
+The following configuration has been verified on the 5-inch CrowPanel Advance
+DIS02050A hardware revision V1.3. Disconnect power before changing the function
+switches, then set `S1` to `0` (OFF) and `S0` to `1` (ON). This selects the
+GPIO19/GPIO20 UART path through the board's hardware multiplexer.
+
+Configure the openHASP generic UART transport for UART 1, RX GPIO19, TX GPIO20,
+115200 baud, 8N1. Connect the NanoELS H5 display header as follows:
+
+| NanoELS H5 display header | CrowPanel connection |
+| --- | --- |
+| `5V` | `UART0-IN` `5V-in` |
+| `GND` | `UART0-IN` `GND` |
+| `TX` | Wireless-module header GPIO19 / UART1 RX |
+| `RX` | Wireless-module header GPIO20 / UART1 TX |
+
+Do not power the CrowPanel through the wireless-module header's `5V` or `3V3`
+pin. On the V1.3 schematic, that header's `IOT_5V` rail reaches `VIN` only
+through `L3`, which is marked not connected (`NC`); `3V3` is a regulated board
+rail, not a power input. Use the `UART0-IN` power pins even when the UART signals
+are taken from the more convenient wireless-module header. See Elecrow's
+[V1.3 schematic](https://github.com/Elecrow-RD/CrowPanel-Advance-5-HMI-ESP32-S3-AI-Powered-IPS-Touch-Screen-800x480/blob/master/Eagle_SCH%26PCB/Version%201.3/ESP32%20Display%205.0%20inch%20V1.3.sch).
+
 ## What was recreated
 
 | Nextion screen | openHASP screen | Contents |
