@@ -140,6 +140,17 @@ Nextion TFT uploads are disabled in the web UI and rejected by the server while
 openHASP is active, including the multipart END/ABORT paths. Upload JSONL/fonts
 through the panel's normal file interface. H5 firmware upload remains available.
 
+## Planned work / TODO
+
+- [ ] **Deferred JSONL layout metadata:** after the openHASP UART transport can
+  emit opaque metadata from a reserved hidden object's standard `tag`, teach the
+  openHASP backend to accept that optional bounded message before `ready 1`.
+  Use it for the layout/skin identity and display-contract version needed when a
+  future contract adds required fields or controls. Layouts and panel firmware
+  that send no metadata must retain today's behavior, and older NanoELS versions
+  must be able to ignore the new message. This does not put ordinary widget tags
+  on the event wire and is not part of the near-term offline skin validator.
+
 ## Verification
 
 Run the host tests from the repository root:
