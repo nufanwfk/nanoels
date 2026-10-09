@@ -30,8 +30,10 @@ must not be paired with this openHASP backend.
 - Nextion commands keep their three `FF` terminators. openHASP commands end in LF.
 - The receiver has one fixed 512-byte line buffer. Touch events use three
   space-separated tokens: `event <object-topic> <event-name>`. No incoming JSON
-  parsing or additional library is required. Malformed/truncated lines,
-  extra tokens, unknown topics and unsupported events are ignored.
+  parsing or additional library is required. Malformed/truncated lines, extra
+  tokens, and unsupported events are ignored. A syntactically valid unknown
+  object topic is recognized only to safely cancel a held known press on `down`;
+  it cannot invoke a machine action.
 - UART commands from the keypad/display tasks are serialized with a mutex.
   No display parsing or backend selection is added to the step-generation loop.
 
@@ -98,8 +100,9 @@ map to their existing hotspot actions. Local BACK has no H5 button action; its
 normal page-state notification updates H5's remembered page.
 
 H5 tracks one active openHASP widget. Duplicate presses/releases are ignored.
-A new widget press first releases the previous one; an old widget's delayed
-release cannot release the newer press. Page changes cancel the active touch
+A new known-widget press first releases the previous one; a valid unknown-widget
+press also releases the previous known press, then is ignored. An old or unknown
+widget's delayed release cannot release a newer press. Page changes cancel the active touch
 using its original page/action, including when H5 itself requests the change.
 The future extension must forward physical release/cancellation events; this
 code cannot reconstruct a missing release on an otherwise silent connection.
@@ -151,9 +154,35 @@ through the panel's normal file interface. H5 firmware upload remains available.
   must be able to ignore the new message. This does not put ordinary widget tags
   on the event wire and is not part of the near-term offline skin validator.
 
+## Skin contract validation
+
+`openhasp/mapping.json` defines the versioned baseline for local panel skins.
+Version 1 has no required output fields and requires only the `mStop` control
+at `p1b23`. It must be visible, enabled, clickable, momentary, and have no
+local `action`; all other output fields and controls are optional. Canonical
+component IDs and meanings are permanent, while skins may add unknown IDs.
+Panel assets are skin-local and a skin change occurs through a reload/restart,
+not live switching. Run the standard-library validator before loading a skin:
+
+```sh
+python3 h5/openhasp/tools/validate_skin.py --pages /path/to/pages.jsonl
+```
+
+The deferred tag-metadata work above will later identify a loaded skin and
+contract version to H5. It is intentionally not part of version 1 validation.
+
 ## Verification
 
-Run the host tests from the repository root:
+Run the offline skin checks from the repository root:
+
+```sh
+python3 -B h5/openhasp/tools/validate_skin.py
+python3 -B h5/openhasp/tests/test_validate_skin.py
+```
+
+They use only the Python standard library and do not compile firmware or C++.
+
+Run the complete host adapter tests when C++ compilation is appropriate:
 
 ```sh
 python3 h5/tests/run_display_tests.py

@@ -17,6 +17,12 @@ def section(start, end):
     return source[source.index(start):source.index(end, source.index(start))]
 
 
+def compiler_is_clang(command):
+    version = subprocess.run(command + ["--version"], check=True, text=True,
+                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    return "clang" in version.stdout.lower()
+
+
 with tempfile.TemporaryDirectory(prefix="h5-display-") as temporary:
     tmp = Path(temporary)
     functions = "\n".join(re.findall(r"^#define B_.*$", source, re.M)) + "\n"
@@ -40,7 +46,11 @@ with tempfile.TemporaryDirectory(prefix="h5-display-") as temporary:
     for name in ("display_protocol_test", "display_integration_test"):
         command = shlex.split(os.environ.get("CXX", "c++"))
         command += ["-std=c++11", "-Wall", "-Wextra", "-Werror"]
-        # The sketch's existing dense [index] array initializers use GNU syntax.
+        # The sketch's existing dense [index] array initializer is accepted by
+        # Arduino's GNU C++ build. Apple Clang reports it as a C99 extension,
+        # so suppress only that known upstream diagnostic in the host harness.
+        if compiler_is_clang(command):
+            command += ["-Wno-c99-designator"]
         if name == "display_protocol_test":
             command += ["-pedantic"]
         command += shlex.split(os.environ.get("CXXFLAGS", ""))

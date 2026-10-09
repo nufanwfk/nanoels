@@ -1,5 +1,12 @@
 {
   "source_commit": "8aa938936bc8e0051c7eb3cf14a173e1f1bc649a",
+  "contract": {
+    "version": 1,
+    "required_fields": [],
+    "required_controls": [
+      "mStop"
+    ]
+  },
   "pages": {
     "0": 1,
     "1": 2

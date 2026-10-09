@@ -1,8 +1,9 @@
 # NanoELS H5 layouts for openHASP
 
 800 × 480 landscape layouts for the CrowPanel Advance DIS02050A project.
-These are the screen definitions and the field/event mapping. They do not
-implement a Nextion serial emulator or establish board support for openHASP.
+These are the screen definitions and the field/event mapping for H5's
+openHASP adapter. They do not implement a Nextion serial emulator or establish
+board support for openHASP.
 
 ## Install the layouts
 
@@ -14,9 +15,9 @@ implement a Nextion serial emulator or establish board support for openHASP.
 3. Select `/pages.jsonl` as the startup layout if necessary and reboot/reload it.
 4. Send `page 1` to show the main screen; send `page 2` to inspect the mode menu.
    The display's startup page should be 1.
-5. The machine buttons publish normal openHASP events. They need the later
-   controller integration to perform their actions. The added BACK button
-   on page 2 already returns locally to page 1.
+5. With H5's openHASP adapter and its generic UART transport extension enabled,
+   the machine buttons publish normal openHASP events to H5. The added BACK
+   button on page 2 already returns locally to page 1.
 
 Upload the two files individually; the ZIP itself is a distribution bundle.
 No picture backgrounds or icon-font downloads are required. The bundled
@@ -78,11 +79,46 @@ jsonl {"page":1,"id":2,"text":"5 passes?"}
 page 2
 ```
 
-These are openHASP commands, not commands that stock H5 currently sends.
-The supplied `demo.cmd` only sets illustrative display values; it does not
-send machine commands. Restore live values before using a connected controller.
+These are the commands that H5's selected openHASP adapter sends. The supplied
+`demo.cmd` only sets illustrative display values; it does not send machine
+commands. Restore live values before using a connected controller.
 
-## Event contract for the later bridge
+## Skin contract
+
+A skin is a local panel asset bundle: its `pages.jsonl`, fonts, and any images
+it uses travel together. Selecting another skin is a layout reload or panel
+restart operation; live switching is not part of this contract. Send `ready 1`
+after the replacement layout is loaded so H5 refreshes its live values.
+
+[`mapping.json`](mapping.json) is the authoritative NanoELS contract. Its
+canonical component names, page/object IDs, and meanings are permanent once
+published. Skin authors may rearrange appearance and may add new IDs, but must
+not repurpose a canonical ID.
+
+Contract version 1 requires no output field. Its only required control is the
+visible, enabled, clickable, momentary `mStop` at `p1b23`; it must not have a
+local `action`. Every other mapped field or control is optional. A skin may,
+for example, omit Y-axis values and controls on a two-axis machine. H5 may send
+an update for an omitted field; the panel ignores it because no such object is
+loaded. An omitted control cannot send an event.
+
+An older H5 ignores unknown future controls. A valid `down` event from one
+first releases any held known control, then does nothing else; unknown release,
+long, hold, and changed events are ignored. This preserves safe release
+semantics without requiring the controller to know every optional control.
+
+Validate a skin before loading it:
+
+```sh
+python3 h5/openhasp/tools/validate_skin.py --pages /path/to/pages.jsonl
+```
+
+The validator is deliberately offline and uses only Python's standard library.
+It enforces the current required baseline and duplicate page/object IDs, while
+allowing optional and future IDs. Layout identity/version metadata carried from
+JSONL tags is deferred until the generic openHASP transport can expose it.
+
+## Event contract for the H5 adapter
 
 Every actionable machine widget has a `tag` containing its `nextion_page`
 and `nextion_id`. `mapping.json` also records the H5 action constant.

@@ -9,7 +9,7 @@
 
 namespace h5display {
 enum Backend { Nextion = 0, OpenHasp = 1 };
-enum Kind { None, Touch, Ready, Page };
+enum Kind { None, Touch, UnknownTouch, Ready, Page };
 struct Event {
   Kind kind = None;
   uint8_t page = 0, id = 0; // Existing H5/Nextion page and component identity.
@@ -125,14 +125,39 @@ private:
     char* separator = strchr(topic, ' ');
     if(!separator) return false;
     *separator++ = 0;
-    const Widget* widget = nullptr;
-    for(const auto& w : widgets) if(strcmp(topic, w.topic) == 0) { widget = &w; break; }
-    if(!widget) return false;
     const char* value = separator;
     const bool down = strcmp(value, "down") == 0;
     if(!down && strcmp(value, "up") && strcmp(value, "release") && strcmp(value, "lost")) return false;
+    uint8_t topicPage = 0, topicId = 0;
+    if(!parseTopic(topic, topicPage, topicId)) return false;
+    const Widget* widget = nullptr;
+    for(const auto& w : widgets) if(strcmp(topic, w.topic) == 0) { widget = &w; break; }
+    if(!widget) {
+      // A well-formed event for an object this firmware does not know is not a
+      // malformed frame. The caller uses a down event to cancel a held known
+      // control, then ignores this future/skin-specific control.
+      event.kind = UnknownTouch; event.page = topicPage; event.id = topicId;
+      event.source = topicPage * 256u + topicId; event.down = down; return true;
+    }
     event.kind = Touch; event.page = widget->page; event.id = widget->id;
     event.source = widget->source; event.down = down; return true;
+  }
+  static bool parseTopic(const char* topic, uint8_t& page, uint8_t& id) {
+    if(*topic++ != 'p') return false;
+    unsigned value = 0;
+    bool digits = false;
+    while(*topic >= '0' && *topic <= '9') {
+      digits = true; value = value * 10u + unsigned(*topic++ - '0');
+      if(value > 12u) return false;
+    }
+    if(!digits || *topic++ != 'b') return false;
+    page = static_cast<uint8_t>(value); value = 0; digits = false;
+    while(*topic >= '0' && *topic <= '9') {
+      digits = true; value = value * 10u + unsigned(*topic++ - '0');
+      if(value > 254u) return false;
+    }
+    if(!digits || *topic) return false;
+    id = static_cast<uint8_t>(value); return true;
   }
 };
 

@@ -54,7 +54,13 @@ void events() {
   assert(a.size()==3 && a[0].kind==Ready && a[1].page==0 && a[2].page==1);
   for(const char* ev : {"long","hold","changed","UP","bogus"})
     assert(receive(rx,OpenHasp,std::string("event p1b48 ")+ev+"\n").empty());
-  for(const char* topic : {"p2b100","p1b2","p1b255","p1b48junk","p0b48"})
+  for(const char* ev : {"long","hold","changed"})
+    assert(receive(rx,OpenHasp,std::string("event p1b254 ")+ev+"\n").empty());
+  for(const char* topic : {"p2b100","p1b2","p0b48"}) {
+    auto unknown = receive(rx,OpenHasp,std::string("event ")+topic+" down\n");
+    assert(unknown.size() == 1 && unknown[0].kind == UnknownTouch && unknown[0].down);
+  }
+  for(const char* topic : {"p1b255","p1b48junk","p13b48"})
     assert(receive(rx,OpenHasp,std::string("event ")+topic+" down\n").empty());
   const std::vector<std::string> bad = {
     "event", "event p1b48", "event p1b48 ", "event p1b48 down junk",
@@ -92,6 +98,13 @@ void lifecycle() {
   assert(held.accept(down,out)==0);
   auto newer=receive(rx,OpenHasp,"event p1b49 down\n")[0];
   assert(held.accept(newer,out)==2 && !out[0].down && out[0].id==48 && out[1].id==49);
+  auto unknown=receive(rx,OpenHasp,"event p1b254 down\n")[0];
+  assert(unknown.kind == UnknownTouch && unknown.down);
+  assert(held.cancel(out[0]) && !out[0].down && out[0].id==49);
+  auto unknownRelease=receive(rx,OpenHasp,"event p1b254 release\n")[0];
+  assert(unknownRelease.kind == UnknownTouch && !unknownRelease.down);
+  assert(!held.cancel(out[0]));
+  assert(held.accept(newer,out)==1 && out[0].down && out[0].id==49);
   down.down=false; assert(held.accept(down,out)==0);
   assert(held.cancel(out[0]) && !out[0].down && out[0].id==49);
   assert(!held.cancel(out[0]));

@@ -8900,6 +8900,13 @@ int readScreenEvent() {
       continue;
     }
     if (activeDisplayBackend == h5display::Nextion) return screenTouchKeycode(touch);
+    if (touch.kind == h5display::UnknownTouch) {
+      // A new skin may add controls that an older H5 does not understand.
+      // Its press cannot start a machine action, but it must still release a
+      // previously held known control before being ignored.
+      if (touch.down && screenTouchState.cancel(touch)) return screenTouchKeycode(touch);
+      continue;
+    }
     h5display::Event events[2];
     unsigned count = screenTouchState.accept(touch, events);
     if (!count) continue;

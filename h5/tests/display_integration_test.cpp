@@ -84,6 +84,18 @@ int main() {
   assert(readScreenEvent()==(B_RIGHT|PS2_BREAK));
   assert(readScreenEvent()==0);
 
+  // Future skin controls must not invoke machine actions. A valid unknown
+  // press releases a held known control; its release cannot release a newer one.
+  Serial1.inject("event p1b48 down\nevent p1b254 down\nevent p1b49 down\nevent p1b254 release\nevent p1b49 release\n");
+  assert(readScreenEvent()==B_LEFT);
+  assert(readScreenEvent()==(B_LEFT|PS2_BREAK));
+  assert(readScreenEvent()==B_RIGHT);
+  assert(readScreenEvent()==(B_RIGHT|PS2_BREAK));
+  assert(readScreenEvent()==0);
+  Serial1.inject("event p1b48junk down\nevent p1b48 down\nevent p1b48 release\n");
+  assert(readScreenEvent()==B_LEFT);
+  assert(readScreenEvent()==(B_LEFT|PS2_BREAK));
+
   Serial1.output.clear(); beep(); assert(Serial1.output.empty());
   activeDisplayBackend=h5display::Nextion;
   beep(); assert(Serial1.output=="play 0,0,0\xFF\xFF\xFF");
