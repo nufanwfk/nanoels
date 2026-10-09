@@ -190,11 +190,13 @@ all 18 live text fields, all 41 main action IDs, and all 13 mode action IDs
 against H5 source. Inspected offline renders of both pages.
 
 The PNGs and `preview.html` are geometry/font previews, not captures from
-openHASP. Embedded loading, touch, font memory usage, and UART behavior have
-not been tested on the CrowPanel. The DIS02050A openHASP board port is still
-unverified. Long or unusually large numeric strings can exceed the original
-field widths; the supplied fields use crop mode. Verify your expected ranges
-on hardware before relying on the readouts.
+openHASP. The bundled layout has now been loaded on the target panel and basic
+UART operation and visual rendering have been confirmed; `mono.ttf` is required
+for the intended sizing and alignment. The complete control matrix, held-touch
+recovery, link interruption, and machine operation have not yet been exhaustively
+tested. Long or unusually large numeric strings can exceed the original field
+widths; the supplied fields use crop mode. Verify your expected ranges on
+hardware before relying on the readouts.
 
 `source-components.json` preserves the extracted source geometry for future
 refinement. `validation.txt` records what was and was not checked.

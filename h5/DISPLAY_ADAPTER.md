@@ -39,7 +39,7 @@ must not be paired with this openHASP backend.
 
 ## Generic UART transport contract, version 2
 
-The future panel extension should transport ordinary openHASP commands and
+The corresponding panel extension transports ordinary openHASP commands and
 state messages. It must not contain NanoELS field or action mappings.
 
 ### H5 → panel
@@ -104,7 +104,7 @@ A new known-widget press first releases the previous one; a valid unknown-widget
 press also releases the previous known press, then is ignored. An old or unknown
 widget's delayed release cannot release a newer press. Page changes cancel the active touch
 using its original page/action, including when H5 itself requests the change.
-The future extension must forward physical release/cancellation events; this
+The panel extension must forward physical release/cancellation events; this
 code cannot reconstruct a missing release on an otherwise silent connection.
 
 ### Startup and layout reload
@@ -145,6 +145,17 @@ through the panel's normal file interface. H5 firmware upload remains available.
 
 ## Planned work / TODO
 
+- [x] Define display contract version 1 in `openhasp/mapping.json`: no required
+  output fields and `mStop` at `p1b23` as the only required control.
+- [x] Add the offline standard-library skin validator and fixture tests for the
+  required baseline, optional/unknown objects, defaults, duplicate IDs and
+  malformed JSONL.
+- [x] Make valid unknown future controls safe: an unknown `down` releases a held
+  known control without invoking a new action; later unknown events are ignored.
+- [x] Pass the complete host protocol/integration suite on macOS Apple Clang.
+- [x] Complete an end-to-end hardware smoke test: H5 booted with the openHASP
+  backend, exchanged UART traffic with the panel, and rendered the bundled skin
+  correctly after `mono.ttf` was installed.
 - [ ] **Deferred JSONL layout metadata:** after the openHASP UART transport can
   emit opaque metadata from a reserved hidden object's standard `tag`, teach the
   openHASP backend to accept that optional bounded message before `ready 1`.
@@ -153,6 +164,9 @@ through the panel's normal file interface. H5 firmware upload remains available.
   that send no metadata must retain today's behavior, and older NanoELS versions
   must be able to ignore the new message. This does not put ordinary widget tags
   on the event wire and is not part of the near-term offline skin validator.
+- [ ] Complete an exhaustive on-machine test of every control, held-touch
+  cancellation, panel restart/reload, and link interruption before treating the
+  openHASP backend as production-safe.
 
 ## Skin contract validation
 
@@ -203,15 +217,17 @@ CXXFLAGS='-fsanitize=address,undefined -fno-omit-frame-pointer' python3 h5/tests
 ```
 
 Host tests cannot establish touch timing, electrical compatibility, or behavior
-on the actual panel. Panel firmware integration and hardware testing remain
-unfinished. See [Self-compile firmware](README.md#self-compile-firmware-with-arduino-ide)
-for the full H5 build; no new libraries are needed for this adapter.
+on the actual panel. The basic panel integration smoke test below is complete;
+exhaustive control and machine-safety testing remain unfinished. See
+[Self-compile firmware](README.md#self-compile-firmware-with-arduino-ide) for the
+full H5 build; no new libraries are needed for this adapter.
 
-### Build validation (token event version)
+### Historical compile comparison (token event version)
 
 Both the version 2 adapter and unchanged main (`6e1e8ce`) compiled for ESP32-S3 using
 Arduino-ESP32 3.0.7, WebSockets 2.6.1 and PS2KeyAdvanced 1.0.9, with 16 MB
-flash, the `default_8MB` partition scheme and OPI PSRAM.
+flash, the `default_8MB` partition scheme and OPI PSRAM. This was a compile-size
+comparison only; it was not a valid hardware configuration for the H5 PCB.
 
 | Build | Flash bytes | Static RAM bytes |
 | --- | ---: | ---: |
@@ -221,5 +237,17 @@ flash, the `default_8MB` partition scheme and OPI PSRAM.
 
 This measures the complete adapter change against main, not two separate
 single-backend builds. Static RAM excludes task-stack and runtime heap usage.
-Host tests also passed with address and undefined-behavior sanitizers. No
-firmware has been flashed or tested on hardware as part of this validation.
+Host tests also passed with address and undefined-behavior sanitizers.
+
+### Hardware smoke test
+
+The current branch booted and exchanged UART traffic with an openHASP panel
+when built with Arduino-ESP32 3.3.12, 16 MB flash, the controller's existing
+standard 4 MB partition table, and PSRAM disabled. The bundled JSONL rendered
+correctly after `mono.ttf` was uploaded.
+
+Do not enable OPI PSRAM on H5. Although the ESP32-S3R8 contains 8 MB of Octal
+PSRAM, its GPIO35–37 bus pins are already used by H5 for `Z_STEP`, keyboard
+clock and keyboard data. Enabling PSRAM caused a watchdog reset loop. A Web UI
+application upload does not replace the partition table, so its build must also
+retain the partition scheme already installed on the controller.
