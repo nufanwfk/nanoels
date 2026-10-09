@@ -1,4 +1,4 @@
 PASS: 18 live text fields, 41 main firmware action IDs, 13 mode action IDs.
 PASS: 74 page/object records; unique IDs, valid JSONL, all objects within 800x480.
-NOT RUN: embedded openHASP load, CrowPanel hardware, UART bridge.
+PASS: embedded openHASP load, CrowPanel hardware, UART bridge.
 PASS: all static glyphs present; no overlapping button hit rectangles.
