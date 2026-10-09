@@ -20,6 +20,23 @@ Latest version of the electronic lead screw controller for metal lathes - https:
 
 ## Display options
 
+### Experimental openHASP layouts
+
+The [openHASP layout package](openhasp/README.md) recreates the main control
+screen and mode selector at 800 × 480 for an ESP32-based display, with the
+CrowPanel Advance DIS02050A as the intended target. It includes JSONL layouts,
+a font, previews, and mappings for all live fields and touch actions.
+
+H5 now includes a selectable [openHASP display adapter](DISPLAY_ADAPTER.md),
+alongside the default Nextion backend. Select it in Machine Config → Display
+and save/restart. It expects a generic UART transport extension on the panel;
+that extension and CrowPanel openHASP board support are not included here.
+The existing widgets can be rearranged without H5 changes if their page IDs
+and identities are preserved. See the adapter contract and package README for
+integration requirements and validation limits.
+
+### Nextion displays
+
 You can use any other Nextion display model including cheaper and smaller ones without touch.
 
 - Requires re-compiling the `h5.tft` file from the [h5.HMI](https://github.com/kachurovskiy/nanoels/blob/main/h5/screen/h5.HMI) for your display
@@ -550,6 +567,8 @@ Use this path only when you need to change the firmware source or rebuild the `.
 - Download [this repository](https://github.com/kachurovskiy/nanoels/archive/refs/heads/main.zip), unzip, go to `h5` directory and open `h5.ino` file in the Arduino IDE
 - Check the top constants only if you need to change firmware defaults. Encoder, Z/X/Y axis, handwheel, manual stepping, and joystick parameters can usually be changed later in the Web UI `Machine Config`; PS/2 keyboard mapping can be changed in the Web UI `Keyboard` section.
 - Select "ESP32S3 Dev Module" as device at the top, pick the COM port that appears when you connect the device with a USB cable
+- Leave PSRAM disabled. H5 uses GPIO35 for `Z_STEP` and GPIO36/37 for the PS/2 keyboard; those pins are also the ESP32-S3R8 Octal-PSRAM bus, so enabling OPI PSRAM prevents reliable boot.
+- For application-only uploads through the H5 Web UI, keep the partition scheme already installed on the controller. Changing the partition scheme requires a full merged-image USB flash; uploading only `h5.ino.bin` does not replace the partition table.
 - Upload the sketch to your H5 controller, or use `Sketch > Export Compiled Binary` to create `.bin` files
 
 For later firmware updates over WiFi, upload `build\esp32.esp32.esp32s3\h5.ino.bin` in the H5 Web UI under `ESP32 Firmware Upload`. Keep the controller stopped during upload. The controller restarts automatically after a successful upload.
