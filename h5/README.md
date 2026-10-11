@@ -23,14 +23,18 @@ Latest version of the electronic lead screw controller for metal lathes - https:
 ### Experimental openHASP layouts
 
 The [openHASP layout package](openhasp/README.md) recreates the main control
-screen and mode selector at 800 × 480 for an ESP32-based display, with the
-CrowPanel Advance DIS02050A as the intended target. It includes JSONL layouts,
-a font, previews, and mappings for all live fields and touch actions.
+screen and mode selector at 800 × 480 for an ESP32-based display. Its tested
+target is the [Elecrow CrowPanel Advance 5.0-HMI ESP32 AI Display](https://www.elecrow.com/wiki/CrowPanel_Advance_5.0-HMI_ESP32_AI_Display.html)
+(model DIS02050A), but any suitable openHASP panel with the same resolution is
+expected to work if it meets the font, image-memory, and UART requirements. The
+package includes a panel-ready upload bundle and mappings for all live fields
+and touch actions.
 
 H5 now includes a selectable [openHASP display adapter](DISPLAY_ADAPTER.md),
 alongside the default Nextion backend. Select it in Machine Config → Display
 and save/restart. It expects a generic UART transport extension on the panel;
-that extension and CrowPanel openHASP board support are not included here.
+that extension and openHASP board support for the Elecrow CrowPanel Advance
+5.0-HMI ESP32 AI Display (model DIS02050A) are not included here.
 The existing widgets can be rearranged without H5 changes if their page IDs
 and identities are preserved. See the adapter contract and package README for
 integration requirements and validation limits.

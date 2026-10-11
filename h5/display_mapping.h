@@ -1,4 +1,4 @@
-// Fixed mappings for h5/openhasp/pages.jsonl; keep IDs when rearranging widgets.
+// Fixed mappings for h5/openhasp/panel-files/pages.jsonl; keep IDs when rearranging widgets.
 // SPDX-License-Identifier: MIT
 #pragma once
 #include <stdint.h>

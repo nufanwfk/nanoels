@@ -184,7 +184,12 @@ def validate(pages_path, mapping_path):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--pages", type=Path, default=ROOT / "pages.jsonl", help="skin pages.jsonl")
+    parser.add_argument(
+        "--pages",
+        type=Path,
+        default=ROOT / "panel-files" / "pages.jsonl",
+        help="skin pages.jsonl",
+    )
     parser.add_argument("--mapping", type=Path, default=ROOT / "mapping.json", help="NanoELS mapping.json")
     args = parser.parse_args(argv)
     errors = validate(args.pages, args.mapping)

@@ -1,17 +1,27 @@
 # NanoELS H5 layouts for openHASP
 
-800 × 480 landscape layouts for the CrowPanel Advance DIS02050A project.
-These are the screen definitions and the field/event mapping for H5's
-openHASP adapter. They do not implement a Nextion serial emulator or establish
-board support for openHASP.
+800 × 480 landscape layouts tested on the
+[Elecrow CrowPanel Advance 5.0-HMI ESP32 AI Display](https://www.elecrow.com/wiki/CrowPanel_Advance_5.0-HMI_ESP32_AI_Display.html)
+(model DIS02050A). These are the screen definitions and the field/event mapping
+for H5's openHASP adapter. They do not implement a Nextion serial emulator or
+establish board support for openHASP.
+
+Any suitable openHASP panel with an 800 × 480 display is expected to work if it
+has enough memory for the bundled TrueType font and PNG atlas and provides the
+required generic UART transport. The Elecrow CrowPanel Advance 5.0-HMI ESP32
+AI Display (model DIS02050A) is the tested target; compatibility with other
+panels has not yet been verified on hardware.
 
 ## Install the layouts
 
-1. Start with a working openHASP installation for your exact board, configured
-   for 800 × 480 landscape with PSRAM and TrueType font support. This layout
-   targets the documented openHASP 0.7.0 interface; board firmware is not included.
-2. Upload `mono.ttf` and `pages.jsonl` to the root of the display filesystem
-   through openHASP's file editor. Keep those filenames unchanged.
+1. Start with a working openHASP installation for the Elecrow CrowPanel Advance
+   5.0-HMI ESP32 AI Display (model DIS02050A), or another suitable panel,
+   configured for 800 × 480 landscape with enough memory and TrueType font
+   support. This layout targets the documented openHASP 0.7.0 interface; board
+   firmware is not included.
+2. Upload all three files from [`panel-files/`](panel-files/) to the root of the
+   display filesystem through openHASP's file editor. The image path is
+   intentionally flat because the panel does not need a folder.
 3. Select `/pages.jsonl` as the startup layout if necessary and reboot/reload it.
 4. Send `page 1` to show the main screen; send `page 2` to inspect the mode menu.
    The display's startup page should be 1.
@@ -19,9 +29,11 @@ board support for openHASP.
    the machine buttons publish normal openHASP events to H5. The added BACK
    button on page 2 already returns locally to page 1.
 
-Upload the two files individually; the ZIP itself is a distribution bundle.
-No picture backgrounds or icon-font downloads are required. The bundled
-DejaVu Sans Mono font supplies both text and navigation symbols.
+Upload the layout files individually; the ZIP itself is a distribution bundle.
+The mode selector and main controls use monochrome NanoELS pictograms derived
+from the original interface. They are packed into one texture atlas so page
+changes do not repeatedly decode many separate PNG files. The bundled DejaVu
+Sans Mono font supplies text and numeric values.
 
 ## What was recreated
 
@@ -46,10 +58,8 @@ image. Intentional adaptations:
 
 - Native widgets replace bitmap backgrounds and transparent touch overlays.
 - DejaVu Sans Mono replaces Nextion `.zi` fonts. Sizes are adjusted for fit.
-- Main-screen symbols use comparable Unicode glyphs. Small spindle captions
-  use STEP, RPM, REV, and a degree symbol.
-- The mode selector preserves its three-column order and white/blue coding;
-  the decorative machining pictograms are omitted in this first conversion.
+- Main-screen and mode symbols use monochrome pictograms packed into one image
+  atlas. The mode selector preserves its three-column order and white/blue coding.
 - The keypad uses the newer project order 1–9, then 0. The older annotated
   README screenshot shows 0 first.
 - Limit glyphs and their numeric values both emit the corresponding limit
@@ -171,19 +181,16 @@ The layout was derived from `kachurovskiy/nanoels` commit
 
 ## Validation and limits
 
-Checked JSONL parsing, unique IDs, screen bounds, bundled glyph coverage,
-all 18 live text fields, all 41 main action IDs, and all 13 mode action IDs
-against H5 source. Inspected offline renders of both pages.
-
-The PNGs and `preview.html` are geometry/font previews, not captures from
-openHASP. The bundled layout has now been loaded on the target panel and basic
-UART operation and visual rendering have been confirmed; `mono.ttf` is required
-for the intended sizing and alignment. The complete control matrix, held-touch
-recovery, link interruption, and machine operation have not yet been exhaustively
-tested. Long or unusually large numeric strings can exceed the original field
-widths; the supplied fields use crop mode. Verify your expected ranges on
-hardware before relying on the readouts.
+Checked JSONL parsing, unique IDs, bundled atlas configuration, all 18 live text
+fields, all 41 main action IDs, and all 13 mode action IDs against H5 source.
+The bundled layout has been loaded on the target panel and basic UART operation
+and visual rendering have been confirmed; `mono.ttf` is required for the
+intended sizing and alignment. The complete control matrix, held-touch recovery,
+link interruption, and machine operation have not yet been exhaustively tested.
+Long or unusually large numeric strings can exceed the original field widths;
+the supplied fields use crop mode. Verify your expected ranges on hardware
+before relying on the readouts.
 
 `source-components.json` preserves the extracted source geometry for future
-refinement. `validation.txt` records what was and was not checked.
+refinement.
 Upstream NanoELS and bundled-font notices are included in the license files.

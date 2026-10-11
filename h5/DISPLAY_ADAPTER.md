@@ -12,17 +12,22 @@ formats partway through a command. `/config` includes `activeDisplayType` and
 that omit `displayType` preserve its stored value.
 
 Both backends use H5's existing **Serial1, 115200 baud, 8N1, RX GPIO44 / TX
-GPIO43**. These are H5 pins, not CrowPanel pin assignments. The adapter does not
+GPIO43**. These are H5 pins, not pin assignments for the Elecrow CrowPanel
+Advance 5.0-HMI ESP32 AI Display (model DIS02050A). The adapter does not
 configure any panel hardware.
 
 ## Scope and status
 
-This change includes the H5 adapter and an 800 × 480 openHASP layout package.
-It does not include an openHASP firmware extension or board port. A matching
-generic UART transport extension is required on the panel; stock openHASP's
-interactive console is not the bidirectional event transport described below.
-The earlier experimental panel-side Nextion translator is a different
-architecture and must not be paired with this openHASP backend.
+This change includes the H5 adapter and an 800 × 480 openHASP layout package
+tested on the Elecrow CrowPanel Advance 5.0-HMI ESP32 AI Display (model
+DIS02050A). Any suitable openHASP panel with the same resolution is expected to
+work if it has enough memory for the bundled font and image atlas and provides
+the required generic UART transport, though other panels have not been verified
+on hardware. This change does not include an openHASP firmware extension or
+board port. Stock openHASP's interactive console is not the bidirectional event
+transport described below. The earlier experimental panel-side Nextion
+translator is a different architecture and must not be paired with this
+openHASP backend.
 
 - Existing H5 machining logic and button actions are reused.
 - `setText()` retains its call interface; page selection and beeps use backend
@@ -199,10 +204,11 @@ full H5 build; no new libraries are needed for this adapter.
 
 ### Hardware validation
 
-The current branch booted and exchanged UART traffic with an openHASP panel
-when built with Arduino-ESP32 3.3.12, 16 MB flash, the controller's existing
-standard 4 MB partition table, and PSRAM disabled. The bundled JSONL rendered
-correctly after `mono.ttf` was uploaded.
+The current branch booted and exchanged UART traffic with the Elecrow CrowPanel
+Advance 5.0-HMI ESP32 AI Display (model DIS02050A) when built with
+Arduino-ESP32 3.3.12, 16 MB flash, the controller's existing standard 4 MB
+partition table, and PSRAM disabled. The bundled JSONL rendered correctly after
+the contents of `openhasp/panel-files/` were uploaded.
 
 Do not enable OPI PSRAM on H5. Although the ESP32-S3R8 contains 8 MB of Octal
 PSRAM, its GPIO35–37 bus pins are already used by H5 for `Z_STEP`, keyboard
