@@ -53,8 +53,8 @@ state messages. It must not contain NanoELS field or action mappings.
 One ordinary openHASP command per LF-terminated line. For example:
 
 ```text
-jsonl {"page":1,"id":21,"text":"0.125"}
-jsonl {"page":1,"id":10,"text":"90°"}
+p1b21.text=0.125
+p1b10.text=90°
 page 2
 ```
 
@@ -63,8 +63,10 @@ its main/UI thread. It should support frames up to **1023 bytes including LF**
 (1022 bytes of command text); H5's 1024-byte output buffer also holds a NUL.
 H5 never sends a partially encoded command if that buffer would overflow.
 
-Text is JSON-escaped. H5's legacy Nextion degree byte `DF` becomes UTF-8 `C2 B0`
-only in the openHASP backend. Logical Nextion pages 0/1 map to openHASP pages 1/2.
+Text is sent with openHASP's direct object-attribute syntax. Values containing
+control characters fall back to JSONL so the LF framing remains unambiguous.
+H5's legacy Nextion degree byte `DF` becomes UTF-8 `C2 B0` only in the openHASP
+backend. Logical Nextion pages 0/1 map to openHASP pages 1/2.
 The JSONL layouts and fonts remain managed on the panel. There is no template
 selector in H5: rearrange/resize the existing widgets while retaining page IDs,
 names/IDs, and event behavior. Moving them between pages requires updating the

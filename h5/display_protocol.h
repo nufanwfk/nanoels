@@ -46,17 +46,33 @@ inline size_t textCommand(Backend backend, const char* name, const char* text,
     out.text("\xFF\xFF\xFF");
   } else {
     char prefix[64];
-    snprintf(prefix, sizeof(prefix), "jsonl {\"page\":%u,\"id\":%u,\"text\":\"", field->page, field->id);
-    out.text(prefix);
-    const char* hex = "0123456789abcdef";
-    while(*text) {
-      const uint8_t c = static_cast<uint8_t>(*text++);
-      if(c == 0xDF) out.text("\xC2\xB0"); // H5's Nextion font degree glyph.
-      else if(c == '"' || c == '\\') { out.byte('\\'); out.byte(static_cast<char>(c)); }
-      else if(c < 0x20) { out.text("\\u00"); out.byte(hex[c >> 4]); out.byte(hex[c & 15]); }
-      else out.byte(static_cast<char>(c));
+    bool direct = true;
+    for(const uint8_t* p = reinterpret_cast<const uint8_t*>(text); *p; ++p) {
+      if(*p < 0x20) { direct = false; break; }
     }
-    out.text("\"}\n");
+    if(direct) {
+      snprintf(prefix, sizeof(prefix), "p%ub%u.text=", field->page, field->id);
+      out.text(prefix);
+      while(*text) {
+        const uint8_t c = static_cast<uint8_t>(*text++);
+        if(c == 0xDF) out.text("\xC2\xB0"); // H5's Nextion font degree glyph.
+        else out.byte(static_cast<char>(c));
+      }
+      out.byte('\n');
+    } else {
+      // Control characters cannot appear in an LF-delimited direct command.
+      snprintf(prefix, sizeof(prefix), "jsonl {\"page\":%u,\"id\":%u,\"text\":\"", field->page, field->id);
+      out.text(prefix);
+      const char* hex = "0123456789abcdef";
+      while(*text) {
+        const uint8_t c = static_cast<uint8_t>(*text++);
+        if(c == 0xDF) out.text("\xC2\xB0");
+        else if(c == '"' || c == '\\') { out.byte('\\'); out.byte(static_cast<char>(c)); }
+        else if(c < 0x20) { out.text("\\u00"); out.byte(hex[c >> 4]); out.byte(hex[c & 15]); }
+        else out.byte(static_cast<char>(c));
+      }
+      out.text("\"}\n");
+    }
   }
   return out.finish();
 }

@@ -16,9 +16,9 @@ void formats() {
   auto n = textCommand(Nextion, "tZ", "0.125", out, sizeof(out));
   assert(std::string(out, n) == "tZ.txt=\"0.125\"\xFF\xFF\xFF");
   n = textCommand(OpenHasp, "tZ", "0.125", out, sizeof(out));
-  assert(std::string(out, n) == "jsonl {\"page\":1,\"id\":21,\"text\":\"0.125\"}\n");
+  assert(std::string(out, n) == "p1b21.text=0.125\n");
   n = textCommand(OpenHasp, "tAngleVal", "90\xDF", out, sizeof(out));
-  assert(std::string(out, n).find("90\xC2\xB0") != std::string::npos);
+  assert(std::string(out, n) == "p1b10.text=90\xC2\xB0\n");
   n = textCommand(Nextion, "tAngleVal", "90\xDF", out, sizeof(out));
   assert(std::string(out, n).find("90\xDF") != std::string::npos);
   n = textCommand(OpenHasp, "t3", "\"A\\B\n\r\t", out, sizeof(out));

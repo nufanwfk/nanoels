@@ -75,17 +75,17 @@ image. Intentional adaptations:
 Nextion `tZ.txt="0.125"` corresponds to this openHASP command:
 
 ```text
-jsonl {"page":1,"id":21,"text":"0.125"}
+p1b21.text=0.125
 ```
 
 Other examples:
 
 ```text
-jsonl {"page":1,"id":3,"text":"ON"}
-jsonl {"page":1,"id":4,"text":"THREAD"}
-jsonl {"page":1,"id":5,"text":"11"}
-jsonl {"page":1,"id":6,"text":"TPI"}
-jsonl {"page":1,"id":2,"text":"5 passes?"}
+p1b3.text=ON
+p1b4.text=THREAD
+p1b5.text=11
+p1b6.text=TPI
+p1b2.text=5 passes?
 page 2
 ```
 
@@ -132,7 +132,7 @@ negotiation are outside contract version 1.
 
 The H5 openHASP backend requires a matching generic UART transport extension
 on the panel. It does not use a Nextion serial emulator. H5 sends ordinary
-LF-terminated openHASP commands, including the `jsonl` and `page` examples
+LF-terminated openHASP commands, including the direct-attribute and `page` examples
 above. The panel sends compact LF-terminated state messages:
 
 ```text

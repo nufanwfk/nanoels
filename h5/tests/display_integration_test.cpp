@@ -36,8 +36,7 @@ int main() {
     assert(Serial1.output == std::string(test.name)+".txt=\"12.3\"\xFF\xFF\xFF");
     activeDisplayBackend = h5display::OpenHasp;
     Serial1.output.clear(); setText(test.name,"12.3");
-    assert(Serial1.output == "jsonl {\"page\":"+std::to_string(test.page)+",\"id\":"+
-      std::to_string(test.id)+",\"text\":\"12.3\"}\n");
+    assert(Serial1.output == "p"+std::to_string(test.page)+"b"+std::to_string(test.id)+".text=12.3\n");
   }
   for(const auto& test : touchCases) {
     for(auto backend : {h5display::Nextion, h5display::OpenHasp}) {
