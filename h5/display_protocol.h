@@ -35,11 +35,18 @@ private:
   char* output_; size_t capacity_, size_ = 0;
 };
 
+static const size_t fieldCount = sizeof(fields) / sizeof(fields[0]);
+
+inline int fieldIndex(const char* name) {
+  for(size_t i = 0; i < fieldCount; ++i) if(strcmp(name, fields[i].name) == 0) return static_cast<int>(i);
+  return -1;
+}
+
 inline size_t textCommand(Backend backend, const char* name, const char* text,
                           char* output, size_t capacity) {
-  const Field* field = nullptr;
-  for(const auto& f : fields) if(strcmp(name, f.name) == 0) { field = &f; break; }
-  if(!field) return 0;
+  const int index = fieldIndex(name);
+  if(index < 0) return 0;
+  const Field* field = &fields[index];
   Writer out(output, capacity);
   if(backend == Nextion) {
     out.text(name); out.text(".txt=\""); out.text(text); out.byte('"');

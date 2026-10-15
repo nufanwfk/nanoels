@@ -67,6 +67,12 @@ Text is sent with openHASP's direct object-attribute syntax. Values containing
 control characters fall back to JSONL so the LF framing remains unambiguous.
 H5's legacy Nextion degree byte `DF` becomes UTF-8 `C2 B0` only in the openHASP
 backend. Logical Nextion pages 0/1 map to openHASP pages 1/2.
+The openHASP backend caches the last transmitted value of each mapped field and
+does not resend exact duplicates. After an axis group stops changing for 400 ms,
+H5 resends that axis's position and two stop distances once. This quiet-time
+snapshot recovers a dropped final update without restoring continuous redundant
+traffic. A panel `ready 1` notification invalidates the cache before the full
+refresh. Nextion output does not use this cache.
 The JSONL layouts and fonts remain managed on the panel. There is no template
 selector in H5: rearrange/resize the existing widgets while retaining page IDs,
 names/IDs, and event behavior. Moving them between pages requires updating the
