@@ -4137,16 +4137,6 @@ SemaphoreHandle_t screenTxMutex = NULL;
 bool screenRefreshPending = false; // Protected by screenTxMutex.
 bool screenCancelPending = false;  // Consumed only by the keypad task.
 byte screenPage = 0;               // Logical Nextion page, protected by screenTxMutex.
-const unsigned long OPENHASP_AXIS_SETTLE_MS = 400;
-const char* const OPENHASP_AXIS_FIELDS[3][3] = {
-  {"tX", "tXUp", "tXDown"},
-  {"tY", "tYUp", "tYDown"},
-  {"tZ", "tZLeft", "tZRight"},
-};
-String openHaspTextCache[h5display::fieldCount];       // Protected by screenTxMutex.
-bool openHaspTextCacheValid[h5display::fieldCount] = {}; // Protected by screenTxMutex.
-unsigned long openHaspAxisLastChangeMs[3] = {};       // Protected by screenTxMutex.
-bool openHaspAxisSettlePending[3] = {};                // Protected by screenTxMutex.
 volatile bool firmwareUploadActive = false;
 bool firmwareUploadFailed = false;
 int firmwareUploadHttpStatus = 200;
@@ -6112,49 +6102,6 @@ void writeScreenBytes(const char* bytes, size_t length) {
   xSemaphoreGive(screenTxMutex);
 }
 
-int getOpenHaspAxisGroup(int fieldIndex) {
-  if (fieldIndex < 0) return -1;
-  for (int group = 0; group < 3; group++) {
-    for (int field = 0; field < 3; field++) {
-      if (strcmp(h5display::fields[fieldIndex].name, OPENHASP_AXIS_FIELDS[group][field]) == 0) return group;
-    }
-  }
-  return -1;
-}
-
-void invalidateOpenHaspTextCacheLocked() {
-  for (size_t i = 0; i < h5display::fieldCount; i++) openHaspTextCacheValid[i] = false;
-  for (int group = 0; group < 3; group++) openHaspAxisSettlePending[group] = false;
-}
-
-bool writeOpenHaspTextLocked(int fieldIndex, const String& text) {
-  char command[1024];
-  size_t length = h5display::textCommand(h5display::OpenHasp, h5display::fields[fieldIndex].name,
-      text.c_str(), command, sizeof(command));
-  return length && !tftUploadActive &&
-      Serial1.write(reinterpret_cast<const uint8_t*>(command), length) == length;
-}
-
-void replaySettledOpenHaspAxisGroups() {
-  if (activeDisplayBackend != h5display::OpenHasp || !screenTxMutex) return;
-  unsigned long now = millis();
-  xSemaphoreTake(screenTxMutex, portMAX_DELAY);
-  if (!tftUploadActive) {
-    for (int group = 0; group < 3; group++) {
-      if (!openHaspAxisSettlePending[group] || now - openHaspAxisLastChangeMs[group] < OPENHASP_AXIS_SETTLE_MS) continue;
-      bool written = true;
-      for (int field = 0; field < 3; field++) {
-        int index = h5display::fieldIndex(OPENHASP_AXIS_FIELDS[group][field]);
-        if (index >= 0 && openHaspTextCacheValid[index]) {
-          written = writeOpenHaspTextLocked(index, openHaspTextCache[index]) && written;
-        }
-      }
-      if (written) openHaspAxisSettlePending[group] = false;
-    }
-  }
-  xSemaphoreGive(screenTxMutex);
-}
-
 void requestScreenRefresh() {
   xSemaphoreTake(screenTxMutex, portMAX_DELAY);
   screenRefreshPending = true;
@@ -6179,7 +6126,6 @@ bool refreshScreenIfRequested() {
   bool refresh = screenRefreshPending;
   screenRefreshPending = false;
   if (refresh) {
-    if (activeDisplayBackend == h5display::OpenHasp) invalidateOpenHaspTextCacheLocked();
     char command[24];
     size_t length = h5display::pageCommand(activeDisplayBackend, screenPage, command, sizeof(command));
     if (!tftUploadActive) Serial1.write(reinterpret_cast<const uint8_t*>(command), length);
@@ -6189,29 +6135,6 @@ bool refreshScreenIfRequested() {
 }
 
 void setText(const String &id, const String &text) {
-  if (activeDisplayBackend == h5display::OpenHasp && screenTxMutex) {
-    int index = h5display::fieldIndex(id.c_str());
-    if (index < 0) return;
-    xSemaphoreTake(screenTxMutex, portMAX_DELAY);
-    bool wasValid = openHaspTextCacheValid[index];
-    if (wasValid && openHaspTextCache[index] == text) {
-      xSemaphoreGive(screenTxMutex);
-      return;
-    }
-    if (writeOpenHaspTextLocked(index, text)) {
-      if (wasValid) {
-        int group = getOpenHaspAxisGroup(index);
-        if (group >= 0) {
-          openHaspAxisLastChangeMs[group] = millis();
-          openHaspAxisSettlePending[group] = true;
-        }
-      }
-      openHaspTextCache[index] = text;
-      openHaspTextCacheValid[index] = true;
-    }
-    xSemaphoreGive(screenTxMutex);
-    return;
-  }
   char command[1024];
   size_t length = h5display::textCommand(activeDisplayBackend, id.c_str(), text.c_str(), command, sizeof(command));
   writeScreenBytes(command, length);
@@ -6804,7 +6727,6 @@ void updateDisplay() {
     publishMachineStatus(statusText, modeText, pitchText, measureText, stepText, rpmText, turnsText, angleText,
       xText, xLeftText, xRightText, yText, yLeftText, yRightText, zText, zLeftText, zRightText, messageText);
   }
-  replaySettledOpenHaspAxisGroups();
 }
 
 bool saveIfChanged() {

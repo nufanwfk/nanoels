@@ -43,6 +43,44 @@ openHASP backend.
 - UART commands from the keypad/display tasks are serialized with a mutex.
   No display parsing or backend selection is added to the step-generation loop.
 
+## Panel logging and performance
+
+Build the openHASP panel firmware with `HASP_LOG_LEVEL=LOG_LEVEL_INFO`.
+openHASP defaults to `LOG_LEVEL_TRACE`, which logs each incoming command.
+Synchronous diagnostic output can block command processing and display refreshes,
+even when the diagnostic console uses a separate UART from the H5 link.
+In testing, this caused receive-buffer overflows, lost commands and corrupted
+widget text when command fragments were joined after bytes were dropped.
+
+Append this flag to the panel's existing PlatformIO `build_flags` (for a local
+override, use `[override]` in `platformio_override.ini`), preserving its other
+flags:
+
+```ini
+    -D HASP_LOG_LEVEL=LOG_LEVEL_INFO
+```
+
+Rebuild and reflash the panel. This is an existing openHASP compile-time setting;
+no logging code patch is required. INFO retains informational messages, warnings
+and errors while excluding TRACE, VERBOSE and DEBUG output. This setting belongs
+to the panel build, not the NanoELS controller build.
+
+An instrumented CrowPanel test sent all 18 text fields 10 times per second for
+30 seconds: 5,400 commands, 88,800 bytes, at 115200 baud. The same workload
+produced:
+
+| Measurement | Default TRACE | INFO |
+| --- | --- | --- |
+| Commands dispatched | 2,552 / 5,400 | 5,400 / 5,400 |
+| Ordered command checksum | Mismatch | Match |
+| Buffer-full / FIFO-overflow events | 33 / 362 | 0 / 0 |
+| Mean command processing time | 10.46 ms | 1.06 ms |
+| Longest interval between LVGL handler starts | 802 ms | 157 ms |
+
+All 18 final widget values matched with INFO. These are measurements of this
+workload on the tested panel, not a maximum throughput rating or a measurement
+of physical display latency.
+
 ## Generic UART transport contract, version 2
 
 The corresponding panel extension transports ordinary openHASP commands and
@@ -67,12 +105,6 @@ Text is sent with openHASP's direct object-attribute syntax. Values containing
 control characters fall back to JSONL so the LF framing remains unambiguous.
 H5's legacy Nextion degree byte `DF` becomes UTF-8 `C2 B0` only in the openHASP
 backend. Logical Nextion pages 0/1 map to openHASP pages 1/2.
-The openHASP backend caches the last transmitted value of each mapped field and
-does not resend exact duplicates. After an axis group stops changing for 400 ms,
-H5 resends that axis's position and two stop distances once. This quiet-time
-snapshot recovers a dropped final update without restoring continuous redundant
-traffic. A panel `ready 1` notification invalidates the cache before the full
-refresh. Nextion output does not use this cache.
 The JSONL layouts and fonts remain managed on the panel. There is no template
 selector in H5: rearrange/resize the existing widgets while retaining page IDs,
 names/IDs, and event behavior. Moving them between pages requires updating the

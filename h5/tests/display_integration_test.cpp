@@ -10,8 +10,6 @@ using String = std::string;
 using SemaphoreHandle_t = void*;
 constexpr int portMAX_DELAY = 0;
 constexpr int PS2_BREAK = 0x8000;
-unsigned long nowMs = 0;
-unsigned long millis() { return nowMs; }
 bool locked = false;
 void xSemaphoreTake(SemaphoreHandle_t mutex, int) { assert(mutex && !locked); locked = true; }
 void xSemaphoreGive(SemaphoreHandle_t) { assert(locked); locked = false; }
@@ -41,39 +39,23 @@ int main() {
     assert(Serial1.output == "p"+std::to_string(test.page)+"b"+std::to_string(test.id)+".text=12.3\n");
   }
 
-  // openHASP suppresses exact duplicates; Nextion retains its stock behavior.
-  Serial1.output.clear(); setText("tZ", "12.3");
-  assert(Serial1.output.empty());
+  // Both backends transmit every setText call, including identical values.
+  Serial1.output.clear(); setText("tZ", "12.3"); setText("tZ", "12.3");
+  assert(Serial1.output == "p1b21.text=12.3\np1b21.text=12.3\n");
   activeDisplayBackend = h5display::Nextion;
+  Serial1.output.clear();
   setText("tZ", "12.3"); setText("tZ", "12.3");
   assert(Serial1.output == "tZ.txt=\"12.3\"\xFF\xFF\xFFtZ.txt=\"12.3\"\xFF\xFF\xFF");
 
-  // Axis groups settle independently and replay once after 400 ms of quiet.
+  // Output is suppressed during upload and resumes afterward.
   activeDisplayBackend = h5display::OpenHasp;
-  Serial1.output.clear(); nowMs = 100; setText("tX", "1.0");
-  nowMs = 300; setText("tZ", "12.4");
-  assert(Serial1.output == "p1b12.text=1.0\np1b21.text=12.4\n");
-  Serial1.output.clear(); nowMs = 499; replaySettledOpenHaspAxisGroups();
-  assert(Serial1.output.empty());
-  nowMs = 500; replaySettledOpenHaspAxisGroups();
-  assert(Serial1.output == "p1b12.text=1.0\np1b13.text=12.3\np1b14.text=12.3\n");
-  Serial1.output.clear(); replaySettledOpenHaspAxisGroups();
-  assert(Serial1.output.empty());
-  nowMs = 700; replaySettledOpenHaspAxisGroups();
-  assert(Serial1.output == "p1b21.text=12.4\np1b20.text=12.3\np1b22.text=12.3\n");
-
-  // Non-axis fields are cached but do not schedule settled replays.
-  nowMs = 600; setText("tAngleVal", "90");
-  Serial1.output.clear(); nowMs = 1200; replaySettledOpenHaspAxisGroups();
-  assert(Serial1.output.empty());
-
-  // A suppressed write is not cached and is sent when output becomes available.
+  Serial1.output.clear();
   tftUploadActive = true; setText("tX", "2.0");
   assert(Serial1.output.empty());
   tftUploadActive = false; setText("tX", "2.0");
   assert(Serial1.output == "p1b12.text=2.0\n");
 
-  // A forced refresh invalidates the cache so unchanged values render again.
+  // A forced refresh restores the remembered page.
   requestScreenRefresh();
   Serial1.output.clear(); assert(refreshScreenIfRequested());
   assert(Serial1.output == "page 1\n");

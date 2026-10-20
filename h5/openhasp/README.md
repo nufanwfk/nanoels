@@ -18,7 +18,9 @@ panels has not yet been verified on hardware.
    5.0-HMI ESP32 AI Display (model DIS02050A), or another suitable panel,
    configured for 800 × 480 landscape with enough memory and TrueType font
    support. This layout targets the documented openHASP 0.7.0 interface; board
-   firmware is not included.
+   firmware is not included. Build the panel firmware with
+   `HASP_LOG_LEVEL=LOG_LEVEL_INFO` to avoid command trace logging blocking
+   display updates; see [panel logging and performance](../DISPLAY_ADAPTER.md#panel-logging-and-performance).
 2. Upload all three files from [`panel-files/`](panel-files/) to the root of the
    display filesystem through openHASP's file editor. The image path is
    intentionally flat because the panel does not need a folder.
